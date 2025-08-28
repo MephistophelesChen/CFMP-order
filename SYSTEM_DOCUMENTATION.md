@@ -216,5 +216,5 @@ curl -X POST http://localhost:8001/api/orders/ \
 
 ### 调试工具
 - Docker容器日志：`docker logs <container-name>`
-- Nacos控制台：http://localhost:8848/nacos
+- Nacos控制台：http://123.57.145.79:8848/nacos/
 - 网关管理：http://localhost:9091
