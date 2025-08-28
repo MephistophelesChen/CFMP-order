@@ -1,0 +1,97 @@
+"""
+微服务公共配置
+"""
+import os
+
+# 服务配置
+SERVICES = {
+    'ORDER_SERVICE': {
+        'name': 'OrderService',
+        'port': 8001,
+        'version': '1.0.0'
+    },
+    'PAYMENT_SERVICE': {
+        'name': 'PaymentService',
+        'port': 8002,
+        'version': '1.0.0'
+    },
+    'NOTIFICATION_SERVICE': {
+        'name': 'NotificationService',
+        'port': 8003,
+        'version': '1.0.0'
+    },
+    'USER_SERVICE': {
+        'name': 'UserService',
+        'port': 8004,
+        'version': '1.0.0'
+    },
+    'PRODUCT_SERVICE': {
+        'name': 'ProductService',
+        'port': 8005,
+        'version': '1.0.0'
+    }
+}
+
+# Nacos配置
+NACOS_CONFIG = {
+    'server_addresses': os.getenv('NACOS_SERVER', '127.0.0.1:8848'),
+    'namespace': os.getenv('NACOS_NAMESPACE', 'cfmp-microservices'),
+    'group': os.getenv('NACOS_GROUP', 'DEFAULT_GROUP'),
+    'username': os.getenv('NACOS_USERNAME', 'nacos'),
+    'password': os.getenv('NACOS_PASSWORD', 'nacos')
+}
+
+# 数据库配置
+DATABASE_CONFIG = {
+    'ORDER_DB': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('ORDER_DB_NAME', 'cfmp_order'),
+        'USER': os.getenv('ORDER_DB_USER', 'root'),
+        'PASSWORD': os.getenv('ORDER_DB_PASSWORD', '123456'),
+        'HOST': os.getenv('ORDER_DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('ORDER_DB_PORT', '3306'),
+    },
+    'PAYMENT_DB': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('PAYMENT_DB_NAME', 'cfmp_payment'),
+        'USER': os.getenv('PAYMENT_DB_USER', 'root'),
+        'PASSWORD': os.getenv('PAYMENT_DB_PASSWORD', '123456'),
+        'HOST': os.getenv('PAYMENT_DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('PAYMENT_DB_PORT', '3306'),
+    },
+    'NOTIFICATION_DB': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('NOTIFICATION_DB_NAME', 'cfmp_notification'),
+        'USER': os.getenv('NOTIFICATION_DB_USER', 'root'),
+        'PASSWORD': os.getenv('NOTIFICATION_DB_PASSWORD', '123456'),
+        'HOST': os.getenv('NOTIFICATION_DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('NOTIFICATION_DB_PORT', '3306'),
+    }
+}
+
+# 通用常量
+ORDER_STATUS_CHOICES = (
+    (0, 'pending_payment'),  # 待支付
+    (1, 'paid'),           # 已支付
+    (2, 'completed'),      # 已完成
+    (3, 'cancelled'),      # 已取消
+)
+
+PAYMENT_METHOD_CHOICES = (
+    (0, 'alipay'),       # 支付宝支付
+    (1, 'wechat_pay'),   # 微信支付
+)
+
+PAYMENT_STATUS_CHOICES = (
+    (0, 'pending'),      # 待支付
+    (1, 'processing'),   # 处理中
+    (2, 'success'),      # 成功
+    (3, 'failed'),       # 失败
+    (4, 'cancelled'),    # 已取消
+)
+
+NOTIFICATION_TYPE_CHOICES = (
+    (0, 'transaction'),  # 交易通知
+    (1, 'system'),       # 系统通知
+    (2, 'promotion'),    # 促销通知
+)

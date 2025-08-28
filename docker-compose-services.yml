@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # 订单服务
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: cfmp-order-service
+    ports:
+      - "8001:8001"
+    environment:
+      - NACOS_SERVER=${NACOS_SERVER:-127.0.0.1:8848}
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE:-public}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      - SERVICE_IP=${SERVICE_IP:-127.0.0.1}
+      - SERVICE_PORT=8001
+      - DEBUG=True
+    command: python manage.py runserver 0.0.0.0:8001
+    restart: unless-stopped
+    networks:
+      - cfmp-network
+
+  # 支付服务
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: cfmp-payment-service
+    ports:
+      - "8002:8002"
+    environment:
+      - NACOS_SERVER=${NACOS_SERVER:-127.0.0.1:8848}
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE:-public}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      - SERVICE_IP=${SERVICE_IP:-127.0.0.1}
+      - SERVICE_PORT=8002
+      - DEBUG=True
+    command: python manage.py runserver 0.0.0.0:8002
+    restart: unless-stopped
+    networks:
+      - cfmp-network
+
+  # 通知服务
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: cfmp-notification-service
+    ports:
+      - "8003:8003"
+    environment:
+      - NACOS_SERVER=${NACOS_SERVER:-127.0.0.1:8848}
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE:-public}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      - SERVICE_IP=${SERVICE_IP:-127.0.0.1}
+      - SERVICE_PORT=8003
+      - DEBUG=True
+    command: python manage.py runserver 0.0.0.0:8003
+    restart: unless-stopped
+    networks:
+      - cfmp-network
+
+networks:
+  cfmp-network:
+    driver: bridge
