@@ -34,19 +34,30 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    """订单列表序列化器"""
+    """订单列表序列化器 - 兼容原有API格式"""
+    buyer_id = serializers.SerializerMethodField(read_only=True)  # 兼容原有API
     products = OrderItemSerializer(source='order_items', many=True, read_only=True)
-    buyer_info = serializers.SerializerMethodField(read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            'order_id', 'order_uuid', 'total_amount', 'status', 'status_display',
-            'created_at', 'updated_at', 'payment_method', 'payment_method_display',
-            'payment_time', 'remark', 'products', 'buyer_info'
+            'order_id', 'status', 'created_at', 'payment_method', 'buyer_id',
+            'cancel_reason', 'payment_time', 'remark', 'shipping_address',
+            'shipping_name', 'shipping_phone', 'shipping_postal_code',
+            'total_amount', 'updated_at', 'products'
         ]
+
+    def get_buyer_id(self, obj):
+        """获取买家ID - 兼容原有API
+        
+        微服务通信点：需要通过buyer_uuid调用UserService获取用户ID
+        """
+        # TODO: 调用UserService获取用户ID
+        # user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
+        # return user_data.get('user_id') if user_data else None
+        
+        # 临时返回UUID作为用户ID（开发阶段）
+        return str(obj.buyer_uuid)
 
     def get_buyer_info(self, obj):
         """通过用户服务获取用户信息"""
@@ -69,11 +80,9 @@ class OrderListSerializer(serializers.ModelSerializer):
             'email': ''
         }
 class OrderDetailSerializer(serializers.ModelSerializer):
-    """订单详情序列化器"""
+    """订单详情序列化器 - 兼容原有API格式"""
+    buyer_id = serializers.SerializerMethodField(read_only=True)  # 兼容原有API
     products = OrderItemSerializer(source='order_items', many=True, read_only=True)
-    buyer_info = serializers.SerializerMethodField(read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
 
     # 配送地址解密字段
     shipping_name = serializers.SerializerMethodField()
@@ -83,29 +92,20 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'order_id', 'order_uuid', 'total_amount', 'status', 'status_display',
-            'created_at', 'updated_at', 'payment_method', 'payment_method_display',
-            'payment_time', 'remark', 'cancel_reason', 'products', 'buyer_info',
-            'shipping_name', 'shipping_phone', 'shipping_address', 'shipping_postal_code'
+            'order_id', 'status', 'created_at', 'payment_method', 'buyer_id',
+            'cancel_reason', 'payment_time', 'remark', 'shipping_address',
+            'shipping_name', 'shipping_phone', 'shipping_postal_code',
+            'total_amount', 'updated_at', 'products'
         ]
 
-    def get_buyer_info(self, obj):
-        """通过用户服务获取用户信息"""
-        try:
-            # TODO: 调用用户服务获取用户信息
-            # user_data = service_client.get('user-service', f'/api/users/{obj.buyer_uuid}/')
-            # if user_data:
-            #     return {
-            #         'user_id': user_data.get('user_id'),
-            #         'username': user_data.get('username'),
-            #         'email': user_data.get('email'),
-            #         'phone': user_data.get('phone')
-            #     }
-            pass
-        except Exception as e:
-            print(f"获取用户信息失败: {e}")
-
-        return None
+    def get_buyer_id(self, obj):
+        """获取买家ID - 兼容原有API"""
+        # TODO: 调用UserService获取用户ID
+        # user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
+        # return user_data.get('user_id') if user_data else None
+        
+        # 临时返回UUID作为用户ID（开发阶段）
+        return str(obj.buyer_uuid)
 
     def get_shipping_name(self, obj):
         """解密收货人姓名"""

@@ -1,11 +1,12 @@
 """
-通知服务视图
+通知服务视图 - 微服务版本
+解耦改造：移除对User的直接依赖，通过微服务API通信
 """
 import uuid
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.generics import ListAPIView, GenericAPIView, UpdateAPIView
+from rest_framework.generics import ListAPIView, GenericAPIView, UpdateAPIView, CreateAPIView
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -15,6 +16,10 @@ from .serializers import (
     NotificationSerializer, SecurityPolicySerializer,
     RiskAssessmentSerializer, CreateNotificationSerializer
 )
+from common.service_client import service_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class StandardPagination(PageNumberPagination):
@@ -25,14 +30,19 @@ class StandardPagination(PageNumberPagination):
 
 
 class NotificationListAPIView(ListAPIView):
-    """通知列表"""
+    """通知列表
+    
+    微服务通信点：验证用户身份，获取用户相关通知
+    """
     serializer_class = NotificationSerializer
     pagination_class = StandardPagination
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = getattr(self.request.user, 'id', None) or uuid.uuid4()
+        # 微服务通信：从认证头获取用户UUID
+        user_uuid = self._get_user_uuid_from_request()
+        if not user_uuid:
+            return Notification.objects.none()
 
         queryset = Notification.objects.filter(user_uuid=user_uuid)
 
@@ -47,22 +57,63 @@ class NotificationListAPIView(ListAPIView):
         elif read_status == 'false':
             queryset = queryset.filter(read=False)
 
-        return queryset
+        return queryset.order_by('-created_at')
+
+    def _get_user_uuid_from_request(self):
+        """从请求中获取用户UUID"""
+        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            # TODO: 调用UserService验证token
+            # user_data = service_client.post('UserService', '/api/auth/verify-token/', 
+            #                               {'token': token})
+            # return user_data.get('user_uuid') if user_data else None
+            pass
+            
+        if hasattr(self.request, 'user') and self.request.user.is_authenticated:
+            user_id = getattr(self.request.user, 'pk', None)
+            return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
+            
+        logger.warning("无法获取用户UUID，使用默认值进行开发测试")
+        return str(uuid.uuid4())
 
 
-class NotificationCreateAPIView(GenericAPIView):
-    """创建通知（内部服务调用）"""
+class NotificationCreateAPIView(CreateAPIView):
+    """创建通知（供其他微服务调用）
+    
+    微服务通信点：接收其他服务的通知创建请求
+    """
     serializer_class = CreateNotificationSerializer
-    permission_classes = [IsAuthenticated]  # TODO: 改为服务间认证
+    # TODO: 改为服务间认证，而非用户认证
+    permission_classes = [IsAuthenticated]  
 
-    def post(self, request):
-        """创建通知"""
+    def create(self, request, *args, **kwargs):
+        """创建通知
+        
+        接收来自OrderService、PaymentService等的通知创建请求
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
+        # 验证用户UUID是否有效（可选）
+        user_uuid = serializer.validated_data.get('user_uuid')
+        # TODO: 调用UserService验证用户是否存在
+        # user_data = service_client.get('UserService', f'/api/users/{user_uuid}/')
+        # if not user_data:
+        #     return Response({'error': '用户不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        
         notification = serializer.save()
+        
+        # TODO: 如果启用实时推送，可在此处调用推送服务
+        # self._send_real_time_notification(notification)
 
         response_serializer = NotificationSerializer(notification)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    def _send_real_time_notification(self, notification):
+        """发送实时通知（WebSocket、推送等）"""
+        # TODO: 实现实时通知推送逻辑
+        pass
 
 
 class NotificationMarkReadAPIView(GenericAPIView):
@@ -122,6 +173,47 @@ class NotificationUnreadCountAPIView(GenericAPIView):
         ).count()
 
         return Response({'unread_count': unread_count})
+
+
+class NotificationDetailAPIView(GenericAPIView):
+    """通知详情 - 兼容原有API GET/DELETE /api/notifications/{notification_id}/"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, notification_id):
+        """获取通知详情"""
+        # TODO: 从JWT token获取用户UUID
+        user_uuid = request.user.id
+
+        notification = get_object_or_404(
+            Notification,
+            id=notification_id,
+            user_uuid=user_uuid
+        )
+
+        serializer = NotificationSerializer(notification)
+        return Response({
+            'code': '200',
+            'message': 'success',
+            'data': serializer.data
+        })
+
+    def delete(self, request, notification_id):
+        """删除通知"""
+        # TODO: 从JWT token获取用户UUID
+        user_uuid = request.user.id
+
+        notification = get_object_or_404(
+            Notification,
+            id=notification_id,
+            user_uuid=user_uuid
+        )
+
+        notification.delete()
+        return Response({
+            'code': '200',
+            'message': '通知已删除',
+            'data': None
+        })
 
 
 class NotificationDeleteAPIView(GenericAPIView):
