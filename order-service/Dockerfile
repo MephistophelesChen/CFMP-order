@@ -6,7 +6,8 @@ WORKDIR /app
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
+RUN rm -rf /etc/apt/sources.list.d/* && \
+    rm -f /etc/apt/sources.list
 # 更换APT源为USTC镜像
 RUN echo "deb https://mirrors.ustc.edu.cn/debian/ bookworm main non-free non-free-firmware contrib" > /etc/apt/sources.list \
     && echo "deb-src https://mirrors.ustc.edu.cn/debian/ bookworm main non-free non-free-firmware contrib" >> /etc/apt/sources.list \

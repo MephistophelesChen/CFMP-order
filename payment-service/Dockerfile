@@ -2,7 +2,8 @@ FROM python:3.11.10-slim-bookworm
 
 # 设置工作目录
 WORKDIR /app
-
+RUN rm -rf /etc/apt/sources.list.d/* && \
+    rm -f /etc/apt/sources.list
 # 更换APT源为USTC镜像
 RUN echo "deb https://mirrors.ustc.edu.cn/debian/ bookworm main non-free non-free-firmware contrib" > /etc/apt/sources.list \
     && echo "deb-src https://mirrors.ustc.edu.cn/debian/ bookworm main non-free non-free-firmware contrib" >> /etc/apt/sources.list \
