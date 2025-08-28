@@ -1,0 +1,43 @@
+# 使用官方Python镜像作为基础镜像
+FROM python:3.11.10-slim-bookworm
+
+# 设置工作目录
+WORKDIR /app
+
+# 配置中科大源以加快下载速度
+RUN rm -rf /etc/apt/sources.list.d/* && \
+    rm -f /etc/apt/sources.list && \
+    echo "deb https://mirrors.ustc.edu.cn/debian/ bookworm main non-free non-free-firmware" > /etc/apt/sources.list && \
+    echo "deb https://mirrors.ustc.edu.cn/debian/ bookworm-updates main non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.ustc.edu.cn/debian/ bookworm-backports main non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.ustc.edu.cn/debian-security/ bookworm-security main non-free non-free-firmware" >> /etc/apt/sources.list
+
+# 更新包列表并安装必要的系统依赖
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        default-libmysqlclient-dev \
+        pkg-config && \
+    rm -rf /var/lib/apt/lists/*
+
+# 复制requirements文件并安装Python依赖
+COPY notification-service/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制common模块到容器
+COPY common/ ./common/
+
+# 复制notification服务代码到容器
+COPY notification-service/ .
+
+# 创建日志目录
+RUN mkdir -p logs
+
+# 收集静态文件（如果需要）
+RUN python manage.py collectstatic --noinput || true
+
+# 暴露端口
+EXPOSE 8003
+
+# 启动命令
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8003"]

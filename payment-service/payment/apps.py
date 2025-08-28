@@ -26,7 +26,8 @@ class PaymentConfig(AppConfig):
         try:
             # 添加公共模块路径
             BASE_DIR = Path(__file__).resolve().parent.parent
-            COMMON_DIR = BASE_DIR.parent / 'common'
+            # 在容器中，common模块与payment-service在同一级目录
+            COMMON_DIR = BASE_DIR / 'common'
             sys.path.insert(0, str(COMMON_DIR))
 
             # 获取实际端口

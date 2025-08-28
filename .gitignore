@@ -221,3 +221,4 @@ yarn-error.log*
 .local
 local_*
 order-OLD/
+k8s/

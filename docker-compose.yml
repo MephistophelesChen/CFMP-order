@@ -55,8 +55,8 @@ services:
   # 订单服务
   order-service:
     build:
-      context: ./order-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.order-root
     container_name: order-service
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
@@ -78,8 +78,8 @@ services:
   # 支付服务
   payment-service:
     build:
-      context: ./payment-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.payment-root
     container_name: payment-service
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
@@ -101,8 +101,8 @@ services:
   # 通知服务
   notification-service:
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.notification-root
     container_name: notification-service
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
