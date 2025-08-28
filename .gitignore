@@ -18,6 +18,20 @@ var/
 wheels/
 share/python-wheels/
 *.egg-info/
+
+# Backup files
+*_backup*
+*_old*
+*.backup
+
+# Temporary files
+*_temp*
+*_tmp*
+test_*.py
+
+# Documentation drafts
+*_draft.md
+*_temp.md
 .installed.cfg
 *.egg
 MANIFEST

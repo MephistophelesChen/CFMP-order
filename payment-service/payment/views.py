@@ -1,9 +1,11 @@
 """
 支付服务视图 - 微服务版本
-解耦改造：移除对Order和User的直接依赖，通过微服务API通信
+使用Apisix网关解析的用户UUID，避免调用UserService
 """
+import uuid
+import logging
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status
+from rest_framework import status as http_status
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView, CreateAPIView, GenericAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -12,8 +14,7 @@ from django.utils import timezone
 from .models import Payment
 from .serializers import PaymentSerializer, CreatePaymentSerializer, PaymentCallbackSerializer
 from common.service_client import service_client
-import uuid
-import logging
+from common.microservice_base import MicroserviceBaseView
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class StandardPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class PaymentCreateAPIView(CreateAPIView):
+class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
     """创建支付
 
     微服务通信点：
@@ -36,10 +37,10 @@ class PaymentCreateAPIView(CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        # 微服务通信：获取用户UUID
-        user_uuid = self._get_user_uuid_from_request()
+        # 微服务通信：从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
-            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
 
         # TODO: 调用OrderService验证订单信息
         order_uuid = request.data.get('order_uuid')
@@ -49,10 +50,9 @@ class PaymentCreateAPIView(CreateAPIView):
             #     return Response({'error': '订单不存在'}, status=status.HTTP_400_BAD_REQUEST)
             # if order_data.get('status') != 0:  # 只能支付待支付的订单
             #     return Response({'error': '订单状态不允许支付'}, status=status.HTTP_400_BAD_REQUEST)
-            # if order_data.get('buyer_uuid') != user_uuid:
-            #     return Response({'error': '订单不属于当前用户'}, status=status.HTTP_403_FORBIDDEN)
             pass
 
+        # 创建支付记录
         serializer = self.get_serializer(
             data=request.data,
             context={'user_uuid': user_uuid}
@@ -60,251 +60,415 @@ class PaymentCreateAPIView(CreateAPIView):
         serializer.is_valid(raise_exception=True)
         payment = serializer.save()
 
-        # TODO: 调用NotificationService发送支付创建通知
-        # try:
-        #     service_client.post('NotificationService', '/api/notifications/', {
-        #         'user_uuid': user_uuid,
-        #         'type': 0,  # transaction
-        #         'title': '支付订单已创建',
-        #         'content': f'订单支付已创建，金额：¥{payment.amount}，请及时完成支付',
-        #         'related_id': str(payment.payment_uuid)
-        #     })
-        # except Exception as e:
-        #     logger.warning(f"发送支付创建通知失败: {e}")
+        # TODO: 调用第三方支付接口
+        payment_result = self._process_payment(payment)
 
-        # 返回支付信息
-        response_serializer = PaymentSerializer(payment)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        if payment_result.get('success'):
+            # TODO: 微服务通信：支付成功后通知订单服务更新状态
+            # try:
+            #     order_update_data = {
+            #         'status': 1,  # 已支付
+            #         'paid_at': timezone.now().isoformat()
+            #     }
+            #     service_client.patch('OrderService', f'/api/orders/{order_uuid}/', order_update_data)
+            # except Exception as e:
+            #     logger.warning(f"更新订单状态失败: {e}")
 
-    def _get_user_uuid_from_request(self):
-        """从请求中获取用户UUID"""
-        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-            # TODO: 调用UserService验证token
-            pass
+            # TODO: 微服务通信：发送支付成功通知
+            # try:
+            #     notification_data = {
+            #         'user_uuid': user_uuid,
+            #         'title': '支付成功',
+            #         'content': f'订单 {order_uuid} 支付成功，金额 ¥{payment.amount}',
+            #         'type': 'payment',
+            #         'metadata': {
+            #             'order_uuid': order_uuid,
+            #             'payment_id': payment.payment_id,
+            #             'amount': str(payment.amount)
+            #         }
+            #     }
+            #     service_client.post('NotificationService', '/api/notifications/', notification_data)
+            # except Exception as e:
+            #     logger.warning(f"发送支付成功通知失败: {e}")
 
-        if hasattr(self.request, 'user') and self.request.user.is_authenticated:
-            user_id = getattr(self.request.user, 'pk', None)
-            return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
+            response_serializer = PaymentSerializer(payment)
+            return Response({
+                'code': '200',
+                'message': '支付创建成功',
+                'data': response_serializer.data
+            }, status=http_status.HTTP_201_CREATED)
+        else:
+            return Response({
+                'error': '支付处理失败',
+                'details': payment_result.get('error', '未知错误')
+            }, status=http_status.HTTP_400_BAD_REQUEST)
 
-        logger.warning("无法获取用户UUID，使用默认值进行开发测试")
-        return str(uuid.uuid4())
-class PaymentRecordsAPIView(ListAPIView):
+    def _process_payment(self, payment):
+        """处理支付逻辑"""
+        # TODO: 实现具体的支付处理逻辑
+        # 这里应该调用支付宝、微信支付等第三方接口
+
+        # 模拟支付处理
+        import random
+        if random.choice([True, False]):  # 50%成功率模拟
+            payment.status = 1  # 支付成功
+            payment.transaction_id = f"txn_{uuid.uuid4().hex[:16]}"
+            payment.paid_at = timezone.now()
+            payment.save()
+
+            return {
+                'success': True,
+                'transaction_id': payment.transaction_id
+            }
+        else:
+            payment.status = 2  # 支付失败
+            payment.save()
+
+            return {
+                'success': False,
+                'error': '支付处理失败'
+            }
+
+
+class PaymentListAPIView(ListAPIView, MicroserviceBaseView):
     """支付记录列表"""
     serializer_class = PaymentSerializer
     pagination_class = StandardPagination
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = getattr(self.request.user, 'id', None) or str(uuid.uuid4())  # 临时模拟
-        return Payment.objects.filter(user_uuid=user_uuid)
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Payment.objects.none()
 
+        return Payment.objects.filter(user_uuid=user_uuid).order_by('-created_at')
 
-class PaymentQueryAPIView(GenericAPIView):
-    """支付查询"""
-    permission_classes = [IsAuthenticated]
+    def list(self, request, *args, **kwargs):
+        """返回支付列表 - 兼容原有API响应格式"""
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
 
-    def get(self, request, payment_uuid):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = getattr(request.user, 'id', None) or str(uuid.uuid4())  # 临时模拟
-
-        payment = get_object_or_404(
-            Payment,
-            payment_uuid=payment_uuid,
-            user_uuid=user_uuid
-        )
-
-        serializer = PaymentSerializer(payment)
-        return Response(serializer.data)
-
-
-class PaymentQueryByOrderAPIView(GenericAPIView):
-    """通过订单ID查询支付信息 - 兼容原有API /api/payment/{order_id}/"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, order_id):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = getattr(request.user, 'id', None) or str(uuid.uuid4())  # 临时模拟
-
-        # 通过订单ID查询支付记录
-        try:
-            payment = Payment.objects.filter(
-                order_id=order_id,
-                user_uuid=user_uuid
-            ).latest('created_at')
-
-            serializer = PaymentSerializer(payment)
-            return Response({
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({
                 'code': '200',
                 'message': 'success',
                 'data': serializer.data
             })
-        except Payment.DoesNotExist:
-            return Response({
-                'code': '404',
-                'message': '未找到该订单的支付记录',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
 
-
-class PaymentCallbackAPIView(GenericAPIView):
-    """支付回调处理"""
-    permission_classes = [AllowAny]  # 第三方支付平台回调，不需要认证
-
-    def post(self, request, payment_method):
-        """处理支付回调"""
-        # TODO: 验证回调签名
-
-        serializer = PaymentCallbackSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # 获取验证后的数据
-        payment_uuid = request.data.get('payment_uuid')
-        transaction_id = request.data.get('transaction_id')
-        payment_status = request.data.get('status')
-        callback_data = request.data.get('callback_data', {})
-
-        try:
-            payment = Payment.objects.get(payment_uuid=payment_uuid)
-
-            # 更新支付状态
-            payment.status = payment_status
-            payment.transaction_id = transaction_id
-            payment.callback_received = True
-            payment.callback_data = callback_data
-            payment.callback_time = timezone.now()
-
-            if payment_status == 2:  # 支付成功
-                payment.paid_at = timezone.now()
-            elif payment_status in [3, 4]:  # 失败或取消
-                payment.failure_reason = callback_data.get('failure_reason', '支付失败')
-
-            payment.save()
-
-            # TODO: 通知订单服务更新订单状态
-            # service_client.post('order-service', f'/api/orders/{payment.order_uuid}/payment-callback/', {
-            #     'payment_status': payment_status,
-            #     'payment_id': payment.payment_id
-            # })
-
-            return Response({'message': '回调处理成功'})
-
-        except Payment.DoesNotExist:
-            return Response(
-                {'error': '支付记录不存在'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class PaymentCancelAPIView(GenericAPIView):
-    """取消支付"""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, payment_uuid):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = getattr(request.user, 'id', None) or str(uuid.uuid4())  # 临时模拟
-
-        payment = get_object_or_404(
-            Payment,
-            payment_uuid=payment_uuid,
-            user_uuid=user_uuid
-        )
-
-        if payment.status not in [0, 1]:  # 只能取消待支付或处理中的支付
-            return Response(
-                {'error': '该支付无法取消'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        payment.status = 4  # 已取消
-        payment.failure_reason = '用户主动取消'
-        payment.save()
-
+        serializer = self.get_serializer(queryset, many=True)
         return Response({
             'code': '200',
-            'message': '支付已取消',
-            'data': None
+            'message': 'success',
+            'data': serializer.data
         })
 
 
-class PaymentRefundAPIView(GenericAPIView):
-    """订单退款API - 供OrderService调用"""
+class PaymentDetailAPIView(GenericAPIView, MicroserviceBaseView):
+    """支付详情"""
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, order_id):
-        """处理订单退款"""
-        refund_amount = request.data.get('refund_amount')
-        refund_reason = request.data.get('refund_reason', '订单取消')
-        refund_method = request.data.get('refund_method', 'original_payment')
+    def get(self, request, payment_id):
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
+
+        payment = get_object_or_404(
+            Payment,
+            payment_id=payment_id,
+            user_uuid=user_uuid
+        )
+
+        serializer = PaymentSerializer(payment)
+        return Response({
+            'code': '200',
+            'message': 'success',
+            'data': serializer.data
+        })
+
+
+class PaymentCallbackAPIView(GenericAPIView):
+    """支付回调处理 - 第三方支付平台回调"""
+    permission_classes = [AllowAny]  # 支付回调不需要用户认证
+
+    def post(self, request):
+        """处理支付回调"""
+        # 为了保持API兼容性，我们支持两种字段名
+        payment_id = request.data.get('payment_id')
+        payment_uuid = request.data.get('payment_uuid')
+        transaction_id = request.data.get('transaction_id')
+        payment_status = request.data.get('status')
 
         try:
-            # 查找该订单的支付记录
-            payment = Payment.objects.filter(
-                order_id=order_id,
-                status=1  # 已支付
-            ).latest('created_at')
-
-            if not payment:
+            # 优先使用 payment_id 查找，如果没有则使用 payment_uuid
+            if payment_id:
+                payment = Payment.objects.get(payment_id=payment_id)
+            elif payment_uuid:
+                payment = Payment.objects.get(payment_uuid=payment_uuid)
+            else:
                 return Response({
-                    'code': '404',
-                    'message': '未找到该订单的支付记录',
-                    'data': None
-                }, status=status.HTTP_404_NOT_FOUND)
+                    'success': False,
+                    'error': '缺少支付ID'
+                }, status=http_status.HTTP_400_BAD_REQUEST)
 
-            # 验证退款金额
-            if refund_amount and float(refund_amount) > float(payment.amount):
-                return Response({
-                    'code': '400',
-                    'message': '退款金额不能超过支付金额',
-                    'data': None
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            actual_refund_amount = refund_amount or payment.amount
-
-            # TODO: 调用第三方支付平台进行退款
-            # refund_result = third_party_refund(payment.payment_method, payment.transaction_id, actual_refund_amount)
-
-            # 创建退款记录
-            refund_payment = Payment.objects.create(
-                payment_uuid=uuid.uuid4(),
-                order_id=order_id,
-                user_uuid=payment.user_uuid,
-                amount=-float(actual_refund_amount),  # 负数表示退款
-                payment_method=payment.payment_method,
-                status=1,  # 退款成功
-                transaction_id=f"REFUND_{payment.transaction_id}",
-                callback_data={'refund_reason': refund_reason, 'original_payment': str(payment.payment_uuid)}
-            )
-
-            # 更新原支付记录状态
-            payment.status = 4  # 已退款
+            # 更新支付状态
+            if transaction_id:
+                payment.transaction_id = transaction_id
+            if payment_status is not None:
+                payment.status = payment_status
+            if payment_status == 1:  # 支付成功
+                payment.paid_at = timezone.now()
             payment.save()
 
-            return Response({
-                'code': '200',
-                'message': '退款处理成功',
-                'data': {
-                    'success': True,
-                    'refund_id': str(refund_payment.payment_uuid),
-                    'order_id': order_id,
-                    'refund_amount': float(actual_refund_amount),
-                    'refund_status': 'completed',
-                    'estimated_arrival': '3-5个工作日'
-                }
-            })
+            # TODO: 微服务通信：通知订单服务和通知服务
+            if payment_status == 1:  # 支付成功
+                # 更新订单状态
+                # try:
+                #     order_update_data = {
+                #         'status': 1,  # 已支付
+                #         'paid_at': timezone.now().isoformat()
+                #     }
+                #     service_client.patch('OrderService', f'/api/orders/{payment.order_uuid}/', order_update_data)
+                # except Exception as e:
+                #     logger.warning(f"更新订单状态失败: {e}")
+
+                # 发送支付成功通知
+                # try:
+                #     notification_data = {
+                #         'user_uuid': payment.user_uuid,
+                #         'title': '支付成功',
+                #         'content': f'订单 {payment.order_uuid} 支付成功，金额 ¥{payment.amount}',
+                #         'type': 'payment',
+                #         'metadata': {
+                #             'order_uuid': payment.order_uuid,
+                #             'payment_id': payment.payment_id,
+                #             'amount': str(payment.amount)
+                #         }
+                #     }
+                #     service_client.post('NotificationService', '/api/notifications/', notification_data)
+                # except Exception as e:
+                #     logger.warning(f"发送支付成功通知失败: {e}")
+                pass
+
+            return Response({'success': True, 'message': '回调处理成功'})
 
         except Payment.DoesNotExist:
             return Response({
-                'code': '404',
-                'message': '未找到该订单的支付记录',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"退款处理失败: {e}")
+                'success': False,
+                'error': '支付记录不存在'
+            }, status=http_status.HTTP_404_NOT_FOUND)
+
+
+class PaymentQueryByOrderAPIView(GenericAPIView, MicroserviceBaseView):
+    """通过订单ID查询支付记录"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, order_id):
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
+
+        # 根据订单ID查询支付记录
+        payments = Payment.objects.filter(
+            order_uuid=order_id,
+            user_uuid=user_uuid
+        ).order_by('-created_at')
+
+        serializer = PaymentSerializer(payments, many=True)
+        return Response({
+            'code': '200',
+            'message': 'success',
+            'data': serializer.data
+        })
+
+
+class PaymentRecordsAPIView(PaymentListAPIView):
+    """支付记录列表 - 兼容性别名"""
+    pass
+
+
+class PaymentCancelAPIView(GenericAPIView, MicroserviceBaseView):
+    """取消支付"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, payment_id):
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
+
+        payment = get_object_or_404(
+            Payment,
+            payment_id=payment_id,
+            user_uuid=user_uuid
+        )
+
+        # 只有待支付的订单才能取消
+        if payment.status != 0:
             return Response({
-                'code': '500',
-                'message': '退款处理失败，请稍后重试',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'error': '只有待支付的订单才能取消'
+            }, status=http_status.HTTP_400_BAD_REQUEST)
+
+        payment.status = 4  # 已取消
+        payment.save()
+
+        return Response({
+            'message': '支付已取消',
+            'payment_id': payment.payment_id
+        })
+
+
+class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
+    """支付退款"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, payment_id):
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
+
+        payment = get_object_or_404(
+            Payment,
+            payment_id=payment_id,
+            user_uuid=user_uuid
+        )
+
+        # 只有支付成功的订单才能退款
+        if payment.status != 1:
+            return Response({
+                'error': '只有支付成功的订单才能退款'
+            }, status=http_status.HTTP_400_BAD_REQUEST)
+
+        refund_amount = request.data.get('refund_amount', payment.amount)
+        refund_reason = request.data.get('refund_reason', '用户申请退款')
+
+        # TODO: 调用第三方支付接口进行退款
+        refund_result = self._process_refund(payment, refund_amount, refund_reason)
+
+        if refund_result.get('success'):
+            # 更新支付状态
+            payment.status = 3  # 已退款
+            payment.save()
+
+            # TODO: 微服务通信：通知订单服务和通知服务
+            # try:
+            #     notification_data = {
+            #         'user_uuid': user_uuid,
+            #         'title': '退款成功',
+            #         'content': f'订单 {payment.order_uuid} 退款成功，金额 ¥{refund_amount}',
+            #         'type': 'refund',
+            #         'metadata': {
+            #             'order_uuid': payment.order_uuid,
+            #             'payment_id': payment.payment_id,
+            #             'refund_amount': str(refund_amount)
+            #         }
+            #     }
+            #     service_client.post('NotificationService', '/api/notifications/', notification_data)
+            # except Exception as e:
+            #     logger.warning(f"发送退款通知失败: {e}")
+
+            return Response({
+                'message': '退款申请提交成功',
+                'refund_id': refund_result.get('refund_id')
+            })
+        else:
+            return Response({
+                'error': '退款处理失败',
+                'details': refund_result.get('error', '未知错误')
+            }, status=http_status.HTTP_400_BAD_REQUEST)
+
+    def _process_refund(self, payment, refund_amount, refund_reason):
+        """处理退款逻辑"""
+        # TODO: 实现具体的退款处理逻辑
+        # 这里应该调用支付宝、微信支付等第三方退款接口
+
+        # 模拟退款处理
+        return {
+            'success': True,
+            'refund_id': f"refund_{uuid.uuid4().hex[:16]}"
+        }
+
+
+class PaymentStatsAPIView(GenericAPIView, MicroserviceBaseView):
+    """支付统计"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
+
+        payments = Payment.objects.filter(user_uuid=user_uuid)
+
+        from django.db.models import Sum
+        stats = {
+            'total_payments': payments.count(),
+            'successful_payments': payments.filter(status=1).count(),
+            'failed_payments': payments.filter(status=2).count(),
+            'refunded_payments': payments.filter(status=3).count(),
+            'total_amount': payments.filter(status=1).aggregate(Sum('amount'))['amount__sum'] or 0,
+        }
+
+        # 最近30天支付统计
+        from datetime import datetime, timedelta
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_payments = payments.filter(created_at__gte=thirty_days_ago, status=1)
+
+        stats['recent_payments'] = recent_payments.count()
+        stats['recent_amount'] = recent_payments.aggregate(Sum('amount'))['amount__sum'] or 0
+
+        return Response(stats)
+
+
+class PaymentInternalAPIView(GenericAPIView):
+    """内部支付API - 供其他微服务调用"""
+    permission_classes = [AllowAny]  # 内部API不需要用户认证
+
+    def get(self, request, payment_id):
+        """获取支付信息 - 供OrderService等调用"""
+        try:
+            payment = Payment.objects.get(payment_id=payment_id)
+            serializer = PaymentSerializer(payment)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            })
+        except Payment.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': '支付记录不存在'
+            }, status=http_status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        """创建支付 - 供OrderService调用"""
+        serializer = CreatePaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save()
+
+        # 处理支付
+        payment_result = self._process_payment(payment)
+
+        response_serializer = PaymentSerializer(payment)
+        return Response({
+            'success': payment_result.get('success', False),
+            'data': response_serializer.data,
+            'error': payment_result.get('error') if not payment_result.get('success') else None
+        })
+
+    def _process_payment(self, payment):
+        """处理支付逻辑"""
+        # TODO: 实现具体的支付处理逻辑
+        import random
+        if random.choice([True, False]):
+            payment.status = 1
+            payment.transaction_id = f"txn_{uuid.uuid4().hex[:16]}"
+            payment.paid_at = timezone.now()
+            payment.save()
+            return {'success': True}
+        else:
+            payment.status = 2
+            payment.save()
+            return {'success': False, 'error': '支付处理失败'}

@@ -6,6 +6,7 @@ import os
 import sys
 import logging
 import atexit
+import socket
 
 # 使用绝对导入而不是相对导入
 import importlib.util
@@ -59,18 +60,45 @@ class ServiceRegistry:
 
     def _get_service_port(self):
         """获取服务端口"""
-        # 1. 从环境变量获取
+        # 1. 从实际端口环境变量获取（优先级最高）
+        actual_port = os.getenv('ACTUAL_SERVICE_PORT')
+        if actual_port:
+            return int(actual_port)
+
+        # 2. 从环境变量获取
         port = os.getenv('SERVICE_PORT')
         if port:
             return int(port)
 
-        # 2. 从Django runserver命令行参数获取
+        # 3. 从Django runserver命令行参数获取
         port = self._parse_runserver_port()
         if port:
-            return port
+            # 检查端口是否可用，如果不可用则自动分配
+            if self._is_port_available(port):
+                return port
+            else:
+                logger.warning(f"指定端口 {port} 不可用，尝试自动分配端口")
+                return self._get_available_port(port)
 
-        # 3. 默认端口
-        return 8000
+        # 4. 自动分配可用端口（从8000开始）
+        return self._get_available_port(8000)
+
+    def _get_available_port(self, start_port=8000):
+        """获取可用端口"""
+        for port in range(start_port, start_port + 100):
+            if self._is_port_available(port):
+                logger.info(f"自动分配端口: {port}")
+                return port
+        raise Exception(f"无法找到可用端口 (尝试范围: {start_port}-{start_port + 99})")
+
+    def _is_port_available(self, port):
+        """检查端口是否可用"""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return True
+        except OSError:
+            return False
 
     def _parse_runserver_port(self):
         """解析Django runserver命令的端口参数"""

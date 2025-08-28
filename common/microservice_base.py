@@ -20,32 +20,38 @@ class MicroserviceBaseView(APIView):
     """
 
     def get_user_uuid_from_request(self):
-        """从请求中获取用户UUID
+        """从Apisix网关解析的请求头中获取用户UUID
 
-        微服务通信点：与UserService通信验证用户身份
+        微服务通信点：从Apisix网关添加的HTTP头获取用户身份信息
         """
-        # 方案1：从JWT token中解析用户UUID
-        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-            # TODO: 实现JWT解析逻辑或调用UserService验证
-            try:
-                user_data = service_client.post('UserService', '/api/auth/verify-token/',
-                                              {'token': token})
-                if user_data and user_data.get('success'):
-                    return user_data.get('user_uuid')
-            except Exception as e:
-                logger.warning(f"调用UserService验证token失败: {e}")
+        # 方案1：从Apisix网关添加的HTTP头获取用户UUID
+        user_uuid = self.request.META.get('HTTP_X_USER_UUID')
+        if user_uuid:
+            logger.debug(f"从Apisix网关获取到用户UUID: {user_uuid}")
+            return user_uuid
 
-        # 方案2：临时从session或用户对象获取
+        # 方案2：从其他可能的头字段获取
+        user_uuid = self.request.META.get('HTTP_X_USER_ID')
+        if user_uuid:
+            logger.debug(f"从HTTP_X_USER_ID获取到用户UUID: {user_uuid}")
+            return user_uuid
+
+        # 方案3：从JWT payload中获取（如果Apisix解析并添加到头中）
+        user_uuid = self.request.META.get('HTTP_X_JWT_USER_UUID')
+        if user_uuid:
+            logger.debug(f"从JWT payload获取到用户UUID: {user_uuid}")
+            return user_uuid
+
+        # 兼容性：仍保留直接从Django用户对象获取的逻辑（开发环境）
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
-            # 假设用户模型有uuid字段，或者使用用户ID作为临时方案
             user_id = getattr(self.request.user, 'pk', None)
-            return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
+            user_uuid = getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
+            if user_uuid:
+                logger.debug(f"从Django用户对象获取到用户UUID: {user_uuid}")
+                return user_uuid
 
-        # 方案3：开发环境下的模拟用户UUID
-        logger.warning("无法获取用户UUID，使用默认值进行开发测试")
-        return str(uuid.uuid4())  # 临时模拟UUID
+        logger.warning("无法从任何来源获取用户UUID，这可能表示网关配置有问题")
+        return None
 
     def verify_order_ownership(self, order_uuid, user_uuid):
         """验证订单归属权

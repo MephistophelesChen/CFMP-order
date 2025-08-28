@@ -1,6 +1,6 @@
 """
 通知服务视图 - 微服务版本
-解耦改造：移除对User的直接依赖，通过微服务API通信
+使用Apisix网关解析的用户UUID，避免调用UserService
 """
 import uuid
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
@@ -17,6 +17,7 @@ from .serializers import (
     RiskAssessmentSerializer, CreateNotificationSerializer
 )
 from common.service_client import service_client
+from common.microservice_base import MicroserviceBaseView
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class StandardPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class NotificationListAPIView(ListAPIView):
+class NotificationListAPIView(ListAPIView, MicroserviceBaseView):
     """通知列表
 
     微服务通信点：验证用户身份，获取用户相关通知
@@ -39,8 +40,8 @@ class NotificationListAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # 微服务通信：从认证头获取用户UUID
-        user_uuid = self._get_user_uuid_from_request()
+        # 微服务通信：从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Notification.objects.none()
 
@@ -58,24 +59,6 @@ class NotificationListAPIView(ListAPIView):
             queryset = queryset.filter(read=False)
 
         return queryset.order_by('-created_at')
-
-    def _get_user_uuid_from_request(self):
-        """从请求中获取用户UUID"""
-        auth_header = self.request.META.get('HTTP_AUTHORIZATION')
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-            # TODO: 调用UserService验证token
-            # user_data = service_client.post('UserService', '/api/auth/verify-token/',
-            #                               {'token': token})
-            # return user_data.get('user_uuid') if user_data else None
-            pass
-
-        if hasattr(self.request, 'user') and self.request.user.is_authenticated:
-            user_id = getattr(self.request.user, 'pk', None)
-            return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-
-        logger.warning("无法获取用户UUID，使用默认值进行开发测试")
-        return str(uuid.uuid4())
 
 
 class NotificationCreateAPIView(CreateAPIView):
@@ -117,13 +100,15 @@ class NotificationCreateAPIView(CreateAPIView):
         pass
 
 
-class NotificationMarkReadAPIView(GenericAPIView):
+class NotificationMarkReadAPIView(GenericAPIView, MicroserviceBaseView):
     """标记通知为已读"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request, notification_id):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = request.user.id
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         notification = get_object_or_404(
             Notification,
@@ -139,34 +124,39 @@ class NotificationMarkReadAPIView(GenericAPIView):
         return Response({'message': '已标记为已读'})
 
 
-class NotificationMarkAllReadAPIView(GenericAPIView):
+class NotificationMarkAllReadAPIView(GenericAPIView, MicroserviceBaseView):
     """标记所有通知为已读"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = request.user.id
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         unread_notifications = Notification.objects.filter(
             user_uuid=user_uuid,
             read=False
         )
 
+        count = unread_notifications.count()
         unread_notifications.update(
             read=True,
             read_at=timezone.now()
         )
 
-        return Response({'message': f'已标记{unread_notifications.count()}条通知为已读'})
+        return Response({'message': f'已标记{count}条通知为已读'})
 
 
-class NotificationUnreadCountAPIView(GenericAPIView):
+class NotificationUnreadCountAPIView(GenericAPIView, MicroserviceBaseView):
     """获取未读通知数量"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = request.user.id
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         unread_count = Notification.objects.filter(
             user_uuid=user_uuid,
@@ -176,14 +166,16 @@ class NotificationUnreadCountAPIView(GenericAPIView):
         return Response({'unread_count': unread_count})
 
 
-class NotificationDetailAPIView(GenericAPIView):
+class NotificationDetailAPIView(GenericAPIView, MicroserviceBaseView):
     """通知详情 - 兼容原有API GET/DELETE /api/notifications/{notification_id}/"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, notification_id):
         """获取通知详情"""
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = request.user.id
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         notification = get_object_or_404(
             Notification,
@@ -200,8 +192,10 @@ class NotificationDetailAPIView(GenericAPIView):
 
     def delete(self, request, notification_id):
         """删除通知"""
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = request.user.id
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         notification = get_object_or_404(
             Notification,
@@ -217,13 +211,15 @@ class NotificationDetailAPIView(GenericAPIView):
         })
 
 
-class NotificationDeleteAPIView(GenericAPIView):
+class NotificationDeleteAPIView(GenericAPIView, MicroserviceBaseView):
     """删除通知"""
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, notification_id):
-        # TODO: 从JWT token获取用户UUID
-        user_uuid = request.user.id
+        # 从Apisix网关获取用户UUID
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         notification = get_object_or_404(
             Notification,
@@ -250,7 +246,7 @@ class SecurityPolicyUpdateAPIView(UpdateAPIView):
     lookup_field = 'policy_id'
 
 
-class RiskAssessmentAPIView(GenericAPIView):
+class RiskAssessmentAPIView(GenericAPIView, MicroserviceBaseView):
     """风险评估"""
     permission_classes = [IsAuthenticated]
 
@@ -260,8 +256,10 @@ class RiskAssessmentAPIView(GenericAPIView):
         order_uuid = request.data.get('order_uuid')
 
         if not user_uuid:
-            # TODO: 从JWT token获取用户UUID
-            user_uuid = request.user.id
+            # 从Apisix网关获取用户UUID
+            user_uuid = self.get_user_uuid_from_request()
+            if not user_uuid:
+                return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # TODO: 实现风险评估算法
         risk_score = self._calculate_risk_score(user_uuid, order_uuid)
@@ -301,7 +299,7 @@ class RiskAssessmentAPIView(GenericAPIView):
             return 'critical'
 
 
-class FraudDetectionAPIView(GenericAPIView):
+class FraudDetectionAPIView(GenericAPIView, MicroserviceBaseView):
     """欺诈检测"""
     permission_classes = [IsAuthenticated]
 
@@ -311,8 +309,10 @@ class FraudDetectionAPIView(GenericAPIView):
         order_data = request.data.get('order_data', {})
 
         if not user_uuid:
-            # TODO: 从JWT token获取用户UUID
-            user_uuid = request.user.id
+            # 从Apisix网关获取用户UUID
+            user_uuid = self.get_user_uuid_from_request()
+            if not user_uuid:
+                return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # TODO: 实现欺诈检测算法
         is_fraud = self._detect_fraud(user_uuid, order_data)
