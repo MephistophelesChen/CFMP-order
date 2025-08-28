@@ -31,8 +31,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制应用代码
 COPY . .
 
-# 复制公共模块
-COPY ../common /app/common
+# 注意：公共模块将通过Docker构建上下文复制
+# 在运行时通过环境变量PYTHONPATH或sys.path.insert来访问
 
 # 暴露端口
 EXPOSE 8002
