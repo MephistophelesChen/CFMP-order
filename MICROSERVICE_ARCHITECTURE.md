@@ -74,10 +74,10 @@ DATABASE_CONFIG = {
 
 #### 5. ProductService (端口: 8005)
 - **功能**：商品管理、库存管理
-- **状态**：需要注册到系统中
+- **状态**：外部服务，需要单独实现
 - **通信接口**：
-  - `GET /api/products/{uuid}/` - 获取商品信息
-  - `POST /api/products/{uuid}/restore-stock/` - 恢复库存
+  - `GET /api/product/{product_id}/` - 获取商品信息 (原有API)
+  - `POST /api/product/{product_id}/restore-stock/` - 恢复库存 (需要新增)
 
 #### 6. RootService (端口: 8006)
 - **功能**：系统管理、配置管理、监控

@@ -11,7 +11,8 @@ urlpatterns = [
     path('<str:order_id>/cancel/', views.OrderCancelAPIView.as_view(), name='order-cancel'),  # PUT /api/orders/{order_id}/cancel/
     path('<str:order_id>/complete/', views.OrderCompleteAPIView.as_view(), name='order-complete'),  # PUT /api/orders/{order_id}/complete/
     path('stats/', views.OrderStatsAPIView.as_view(), name='order-stats'),  # GET /api/orders/stats/
-    
-    # 微服务内部通信接口（通过UUID访问）
+
+    # 微服务内部通信接口
     path('internal/<uuid:order_uuid>/', views.OrderDetailByUUIDAPIView.as_view(), name='order-detail-by-uuid'),
+    path('internal/orders/<uuid:order_uuid>/', views.OrderInternalAPIView.as_view(), name='order-internal-api'),
 ]

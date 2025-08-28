@@ -11,4 +11,7 @@ urlpatterns = [
     path('<str:order_id>/', views.PaymentQueryByOrderAPIView.as_view(), name='payment-query-by-order'),  # GET /api/payment/{order_id}/
     path('records/', views.PaymentRecordsAPIView.as_view(), name='payment-records'),  # GET /api/payment/records/
     path('<uuid:payment_id>/cancel/', views.PaymentCancelAPIView.as_view(), name='payment-cancel'),  # POST /api/payment/{payment_id}/cancel/
+
+    # 新增：订单退款API - 供OrderService调用
+    path('<str:order_id>/refund/', views.PaymentRefundAPIView.as_view(), name='payment-refund'),  # POST /api/payment/{order_id}/refund/
 ]

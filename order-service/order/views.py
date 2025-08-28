@@ -1,7 +1,7 @@
 """
 订单服务视图 - 微服务版本
 """
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import (
@@ -76,7 +76,7 @@ class OrderListCreateAPIView(ListCreateAPIView):
         """返回订单列表 - 兼容原有API响应格式"""
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
-        
+
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response({
@@ -84,7 +84,7 @@ class OrderListCreateAPIView(ListCreateAPIView):
                 'message': 'success',
                 'data': serializer.data
             })
-            
+
         serializer = self.get_serializer(queryset, many=True)
         return Response({
             'code': '200',
@@ -94,7 +94,7 @@ class OrderListCreateAPIView(ListCreateAPIView):
 
     def _get_user_uuid_from_request(self):
         """从请求中获取用户UUID
-        
+
         微服务通信点：这里需要与UserService通信验证用户身份
         """
         # 方案1：从JWT token中解析用户UUID
@@ -102,17 +102,17 @@ class OrderListCreateAPIView(ListCreateAPIView):
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
             # TODO: 实现JWT解析逻辑或调用UserService验证
-            # user_data = service_client.post('UserService', '/api/auth/verify-token/', 
+            # user_data = service_client.post('UserService', '/api/auth/verify-token/',
             #                               {'token': token})
             # return user_data.get('user_uuid') if user_data else None
             pass
-            
+
         # 方案2：临时从session或用户对象获取
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             # 假设用户模型有uuid字段，或者使用用户ID作为临时方案
             user_id = getattr(self.request.user, 'pk', None)
             return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-            
+
         # 方案3：开发环境下的模拟用户UUID
         logger.warning("无法获取用户UUID，使用默认值进行开发测试")
         return str(uuid.uuid4())  # 临时模拟UUID
@@ -124,7 +124,7 @@ class OrderListCreateAPIView(ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         """创建订单
-        
+
         微服务通信点：
         1. 调用ProductService验证商品信息和库存
         2. 创建订单后调用NotificationService发送通知
@@ -139,18 +139,18 @@ class OrderListCreateAPIView(ListCreateAPIView):
             context={'buyer_uuid': user_uuid}
         )
         serializer.is_valid(raise_exception=True)
-        
+
         # TODO: 在创建订单前，调用ProductService验证商品信息
         # for item in serializer.validated_data.get('items', []):
-        #     product_data = service_client.get('ProductService', 
+        #     product_data = service_client.get('ProductService',
         #                                     f'/api/products/{item["product_uuid"]}/')
         #     if not product_data:
-        #         return Response({'error': f'商品不存在: {item["product_uuid"]}'}, 
+        #         return Response({'error': f'商品不存在: {item["product_uuid"]}'},
         #                       status=status.HTTP_400_BAD_REQUEST)
         #     if product_data.get('stock', 0) < item.get('quantity', 1):
-        #         return Response({'error': f'商品库存不足: {product_data.get("name", "")}'}, 
+        #         return Response({'error': f'商品库存不足: {product_data.get("name", "")}'},
         #                       status=status.HTTP_400_BAD_REQUEST)
-        
+
         order = serializer.save()
 
         # TODO: 调用NotificationService发送订单创建通知
@@ -174,7 +174,7 @@ class OrderListCreateAPIView(ListCreateAPIView):
         }, status=status.HTTP_201_CREATED)
 class OrderDetailAPIView(RetrieveUpdateDestroyAPIView):
     """订单详情
-    
+
     微服务通信点：
     1. 验证用户权限：确保用户只能访问自己的订单
     2. 更新订单状态时：调用PaymentService或NotificationService
@@ -197,11 +197,11 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView):
             token = auth_header.split(' ')[1]
             # TODO: 调用UserService验证token
             pass
-            
+
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             user_id = getattr(self.request.user, 'pk', None)
             return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-            
+
         logger.warning("无法获取用户UUID，使用默认值进行开发测试")
         return str(uuid.uuid4())
 
@@ -217,17 +217,17 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView):
 
     def update(self, request, *args, **kwargs):
         """更新订单
-        
+
         微服务通信点：状态变更时通知其他服务
         """
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         old_status = instance.status
-        
+
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
-        
+
         # 如果状态发生变化，发送通知
         if order.status != old_status:
             # TODO: 调用NotificationService发送状态变更通知
@@ -254,7 +254,7 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 class OrderCancelAPIView(GenericAPIView):
     """取消订单
-    
+
     微服务通信点：
     1. 调用PaymentService取消支付或退款
     2. 调用ProductService恢复库存
@@ -281,7 +281,7 @@ class OrderCancelAPIView(GenericAPIView):
             )
 
         cancel_reason = request.data.get('cancel_reason', '用户主动取消')
-        
+
         # TODO: 如果订单已支付，调用PaymentService进行退款
         # if order.status == 1:  # 已支付
         #     try:
@@ -337,11 +337,11 @@ class OrderCancelAPIView(GenericAPIView):
             token = auth_header.split(' ')[1]
             # TODO: 调用UserService验证token
             pass
-            
+
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             user_id = getattr(self.request.user, 'pk', None)
             return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-            
+
         logger.warning("无法获取用户UUID，使用默认值进行开发测试")
         return str(uuid.uuid4())
 
@@ -381,11 +381,11 @@ class OrderCompleteAPIView(GenericAPIView):
             token = auth_header.split(' ')[1]
             # TODO: 调用UserService验证token
             pass
-            
+
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             user_id = getattr(self.request.user, 'pk', None)
             return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-            
+
         logger.warning("无法获取用户UUID，使用默认值进行开发测试")
         return str(uuid.uuid4())
 
@@ -422,18 +422,18 @@ class OrderStatsAPIView(GenericAPIView):
             token = auth_header.split(' ')[1]
             # TODO: 调用UserService验证token
             pass
-            
+
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             user_id = getattr(self.request.user, 'pk', None)
             return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-            
+
         logger.warning("无法获取用户UUID，使用默认值进行开发测试")
         return str(uuid.uuid4())
 
 
 class AdminOrderListAPIView(ListAPIView):
     """管理员订单列表（兼容原有API /root/order/）
-    
+
     支持多种查询方式：用户ID、手机号、订单ID、商品ID
     """
     serializer_class = OrderDetailSerializer
@@ -444,39 +444,39 @@ class AdminOrderListAPIView(ListAPIView):
     def get_queryset(self):
         """根据查询参数筛选订单"""
         queryset = Order.objects.all().prefetch_related('order_items')
-        
+
         # 支持原有API的查询参数
         buyer_id = getattr(self.request, 'query_params', {}).get('buyer_id')
         phone = getattr(self.request, 'query_params', {}).get('phone')
         order_id = getattr(self.request, 'query_params', {}).get('order_id')
         product_id = getattr(self.request, 'query_params', {}).get('product_id')
-        
+
         if buyer_id:
             # TODO: 调用UserService根据用户ID获取用户UUID
             # user_data = service_client.get('UserService', f'/api/users/{buyer_id}/')
             # if user_data:
             #     queryset = queryset.filter(buyer_uuid=user_data.get('uuid'))
             queryset = queryset.filter(buyer_uuid=buyer_id)  # 临时直接使用ID
-            
+
         if phone:
             # TODO: 调用UserService根据手机号获取用户UUID
             # user_data = service_client.get('UserService', f'/api/users/by-phone/{phone}/')
             # if user_data:
             #     queryset = queryset.filter(buyer_uuid=user_data.get('uuid'))
             pass
-            
+
         if order_id:
             queryset = queryset.filter(order_id=order_id)
-            
+
         if product_id:
             # 通过订单项查找包含指定商品的订单
             queryset = queryset.filter(order_items__product_uuid=product_id)
-            
+
     def list(self, request, *args, **kwargs):
         """返回订单列表 - 兼容原有API响应格式"""
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
-        
+
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response({
@@ -484,7 +484,7 @@ class AdminOrderListAPIView(ListAPIView):
                 'message': 'success',
                 'data': serializer.data
             })
-            
+
         serializer = self.get_serializer(queryset, many=True)
         return Response({
             'code': '200',
@@ -494,7 +494,7 @@ class AdminOrderListAPIView(ListAPIView):
 
     def _get_user_uuid_from_request(self):
         """从请求中获取用户UUID
-        
+
         微服务通信点：这里需要与UserService通信验证用户身份
         """
         # 方案1：从JWT token中解析用户UUID
@@ -502,17 +502,17 @@ class AdminOrderListAPIView(ListAPIView):
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
             # TODO: 实现JWT解析逻辑或调用UserService验证
-            # user_data = service_client.post('UserService', '/api/auth/verify-token/', 
+            # user_data = service_client.post('UserService', '/api/auth/verify-token/',
             #                               {'token': token})
             # return user_data.get('user_uuid') if user_data else None
             pass
-            
+
         # 方案2：临时从session或用户对象获取
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             # 假设用户模型有uuid字段，或者使用用户ID作为临时方案
             user_id = getattr(self.request.user, 'pk', None)
             return getattr(self.request.user, 'uuid', None) or str(user_id) if user_id else None
-            
+
         # 方案3：开发环境下的模拟用户UUID
         logger.warning("无法获取用户UUID，使用默认值进行开发测试")
         return str(uuid.uuid4())  # 临时模拟UUID
@@ -547,3 +547,25 @@ class OrderDetailByUUIDAPIView(RetrieveAPIView):
 # 1. 订单支付功能 - 需要与PaymentService集成
 # 2. 订单物流跟踪 - 可能需要物流服务
 # 3. 订单评价功能 - 需要与商品评价系统集成
+
+
+class OrderInternalAPIView(GenericAPIView):
+    """订单内部API - 供其他微服务调用"""
+    permission_classes = [AllowAny]  # 内部微服务调用
+
+    def get(self, request, order_uuid):
+        """通过UUID获取订单信息 - 供PaymentService等调用"""
+        try:
+            order = Order.objects.get(order_uuid=order_uuid)
+            serializer = OrderDetailSerializer(order)
+            return Response({
+                'code': '200',
+                'message': 'success',
+                'data': serializer.data
+            })
+        except Order.DoesNotExist:
+            return Response({
+                'code': '404',
+                'message': '订单不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
