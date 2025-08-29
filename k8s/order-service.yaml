@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: cfmp-order
+  labels:
+    app: order-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+      - name: order-service
+        image: order-service:latest
+        imagePullPolicy: IfNotPresent  # 允许从镜像仓库拉取
+        ports:
+        - containerPort: 8001
+        env:
+        - name: DJANGO_SETTINGS_MODULE
+          value: "config.settings"
+        - name: DEBUG
+          value: "False"
+        - name: NACOS_SERVER
+          value: "123.57.145.79:8848"
+        - name: NACOS_NAMESPACE
+          value: "public"
+        - name: NACOS_USERNAME
+          value: "nacos"
+        - name: NACOS_PASSWORD
+          value: "nacos"
+        - name: ORDER_DB_HOST
+          value: "mysql-service"
+        - name: ORDER_DB_NAME
+          value: "cfmp_order"
+        - name: ORDER_DB_USER
+          value: "root"
+        - name: ORDER_DB_PASSWORD
+          value: "root123"
+        - name: ORDER_DB_PORT
+          value: "3306"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health/
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health/
+            port: 8001
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}
+      initContainers:
+      - name: wait-for-mysql
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z mysql-service 3306; do echo waiting for mysql; sleep 5; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: cfmp-order
+  labels:
+    app: order-service
+spec:
+  selector:
+    app: order-service
+  type: NodePort
+  ports:
+  - name: http
+    port: 8001
+    targetPort: 8001
+    nodePort: 30001

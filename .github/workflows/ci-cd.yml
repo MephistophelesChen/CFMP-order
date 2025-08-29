@@ -1,0 +1,44 @@
+# .github/workflows/ci-cd.yml
+name: CFMP_deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create deployment archive
+        run: |
+          mkdir -p deploy-temp
+          cp -r * deploy-temp/ 2>/dev/null || true
+          cp -r .[^.]* deploy-temp/ 2>/dev/null || true
+          cd deploy-temp
+          rm -rf .git
+          tar -czf ../cfmp-deploy.tar.gz .
+          cd ..
+          rm -rf deploy-temp
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Deploy to Aliyun
+        run: |
+          sshpass -p ${{secrets.ECS_PASSWORD}} scp -o StrictHostKeyChecking=no cfmp-deploy.tar.gz root@${{secrets.ECS_IP}}:/tmp/
+          sshpass -p ${{secrets.ECS_PASSWORD}} ssh -o StrictHostKeyChecking=no root@${{secrets.ECS_IP}} "
+            mkdir -p ~/CFMP-ORDER &&
+            cd ~/CFMP-ORDER &&
+            tar -xzf /tmp/cfmp-deploy.tar.gz &&
+            rm /tmp/cfmp-deploy.tar.gz &&
+
+            rm -rf frontend.tar backend.tar
+
+          chmod +x start-k8s.sh
+
+          ./start-k8s.sh
+          "

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cfmp-order
+  labels:
+    name: cfmp-order
+    project: cfmp
