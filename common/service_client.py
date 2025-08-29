@@ -100,5 +100,10 @@ class ServiceClient:
         """DELETE请求"""
         return self.request(service_name, 'DELETE', path, headers=headers)
 
+    def patch(self, service_name: str, path: str, data: Optional[Dict] = None,
+              headers: Optional[Dict] = None) -> Optional[Dict]:
+        """PATCH请求"""
+        return self.request(service_name, 'PATCH', path, data=data, headers=headers)
+
 # 全局服务客户端实例
 service_client = ServiceClient()

@@ -1,6 +1,6 @@
 """
 订单服务视图 - 微服务版本
-使用Apisix网关解析的用户UUID，避免调用UserService
+使用Spring Cloud Gateway解析的用户UUID，避免调用UserService
 """
 import logging
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -44,7 +44,7 @@ class OrderListCreateAPIView(ListCreateAPIView, MicroserviceBaseView):
 
     def get_queryset(self):
         """获取当前用户的订单"""
-        # 微服务通信：从Apisix网关获取用户UUID
+    # 微服务通信：从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Order.objects.none()
@@ -107,7 +107,7 @@ class OrderListCreateAPIView(ListCreateAPIView, MicroserviceBaseView):
         1. 调用ProductService验证商品信息和库存
         2. 创建订单后调用NotificationService发送通知
         """
-        # 微服务通信：从Apisix网关获取用户UUID
+    # 微服务通信：从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -118,34 +118,45 @@ class OrderListCreateAPIView(ListCreateAPIView, MicroserviceBaseView):
         )
         serializer.is_valid(raise_exception=True)
 
-        # TODO: 在创建订单前，调用ProductService验证商品信息
-        # for item in serializer.validated_data.get('items', []):
-        #     product_data = service_client.get('ProductService',
-        #                                     f'/api/products/{item["product_uuid"]}/')
-        #     if not product_data:
-        #         return Response({'error': f'商品不存在: {item["product_uuid"]}'},
-        #                       status=status.HTTP_400_BAD_REQUEST)
-        #     if product_data.get('stock', 0) < item.get('quantity', 1):
-        #         return Response({'error': f'商品库存不足: {item["product_uuid"]}'},
-        #                       status=status.HTTP_400_BAD_REQUEST)
+    # TODO(订单冲突检查 - 暂缓实现)：
+    # 需求：避免同一买家在未支付状态下重复创建“包含相同商品”的订单（旧 root 行为）。
+    # 建议实现（后续再做）：
+    # - 按 buyer_uuid + status=0（待支付） 检索订单，判断是否已包含本次请求中的 product_uuid。
+    # - 若存在冲突，直接返回 400（避免重复创建）。
+    # 说明：当前仅加注释，不改变逻辑，以免影响现有流程。
+
+        # 在创建订单前，调用ProductService验证商品存在与库存（兼容旧API路径）
+        for item in serializer.validated_data.get('items', []):
+            pid = item.get('product_uuid')
+            qty = int(item.get('quantity', 1) or 1)
+            product_data = None
+            try:
+                product_data = service_client.get('ProductService', f'/api/products/{pid}/')
+                if not product_data:
+                    product_data = service_client.get('ProductService', f'/api/product/{pid}/')
+            except Exception:
+                product_data = None
+            if not product_data:
+                return Response({'error': f'商品不存在: {pid}'}, status=status.HTTP_400_BAD_REQUEST)
+            if (product_data.get('stock') is not None) and (int(product_data.get('stock')) < qty):
+                return Response({'error': f'商品库存不足: {pid}'}, status=status.HTTP_400_BAD_REQUEST)
 
         order = serializer.save()
 
-        # TODO: 微服务通信：创建订单后发送通知
-        # try:
-        #     notification_data = {
-        #         'user_uuid': user_uuid,
-        #         'title': '订单创建成功',
-        #         'content': f'您的订单 {order.order_id} 已创建成功，等待支付',
-        #         'type': 'order',
-        #         'metadata': {
-        #             'order_id': order.order_id,
-        #             'total_amount': str(order.total_amount)
-        #         }
-        #     }
-        #     service_client.post('NotificationService', '/api/notifications/', notification_data)
-        # except Exception as e:
-        #     logger.warning(f"发送订单创建通知失败: {e}")
+        # 创建订单后发送通知（内部接口）
+        try:
+            service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                'user_uuid': str(user_uuid),
+                'title': '订单创建成功',
+                'content': f'您的订单 {order.order_id} 已创建成功，等待支付',
+                'type': 'order',
+                'related_id': str(order.order_id),
+                'related_data': {
+                    'total_amount': str(order.total_amount)
+                }
+            })
+        except Exception as e:
+            logger.warning(f"发送订单创建通知失败: {e}")
 
         response_serializer = OrderDetailSerializer(order)
         return Response({
@@ -192,28 +203,22 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView, MicroserviceBaseView):
         serializer.is_valid(raise_exception=True)
         updated_order = serializer.save()
 
-        # TODO: 微服务通信：状态变更通知
-        # if old_status != updated_order.status:
-        #     try:
-        #         status_messages = {
-        #             0: '等待支付',
-        #             1: '已支付',
-        #             2: '已完成',
-        #             3: '已取消'
-        #         }
-        #         notification_data = {
-        #             'user_uuid': updated_order.buyer_uuid,
-        #             'title': '订单状态更新',
-        #             'content': f'您的订单 {updated_order.order_id} 状态已更新为：{status_messages.get(updated_order.status, "未知")}',
-        #             'type': 'order',
-        #             'metadata': {
-        #                 'order_id': updated_order.order_id,
-        #                 'status': updated_order.status
-        #             }
-        #         }
-        #         service_client.post('NotificationService', '/api/notifications/', notification_data)
-        #     except Exception as e:
-        #         logger.warning(f"发送订单状态变更通知失败: {e}")
+        # 状态变更通知
+        if old_status != updated_order.status:
+            try:
+                status_messages = {0: '等待支付', 1: '已支付', 2: '已完成', 3: '已取消'}
+                service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                    'user_uuid': str(updated_order.buyer_uuid),
+                    'title': '订单状态更新',
+                    'content': f'您的订单 {updated_order.order_id} 状态已更新为：{status_messages.get(updated_order.status, "未知")}',
+                    'type': 'order',
+                    'related_id': str(updated_order.order_id),
+                    'related_data': {
+                        'status': updated_order.status
+                    }
+                })
+            except Exception as e:
+                logger.warning(f"发送订单状态变更通知失败: {e}")
 
         return Response({
             'code': '200',
@@ -263,21 +268,20 @@ class OrderCancelAPIView(GenericAPIView, MicroserviceBaseView):
         order.status = 3  # 已取消
         order.save()
 
-        # TODO: 微服务通信：取消订单通知
-        # try:
-        #     notification_data = {
-        #         'user_uuid': user_uuid,
-        #         'title': '订单已取消',
-        #         'content': f'您的订单 {order.order_id} 已成功取消',
-        #         'type': 'order',
-        #         'metadata': {
-        #             'order_id': order.order_id,
-        #             'action': 'cancelled'
-        #         }
-        #     }
-        #     service_client.post('NotificationService', '/api/notifications/', notification_data)
-        # except Exception as e:
-        #     logger.warning(f"发送订单取消通知失败: {e}")
+        # 取消订单通知
+        try:
+            service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                'user_uuid': str(user_uuid),
+                'title': '订单已取消',
+                'content': f'您的订单 {order.order_id} 已成功取消',
+                'type': 'order',
+                'related_id': str(order.order_id),
+                'related_data': {
+                    'action': 'cancelled'
+                }
+            })
+        except Exception as e:
+            logger.warning(f"发送订单取消通知失败: {e}")
 
         return Response({'message': '订单已取消'})
 
@@ -305,49 +309,36 @@ class OrderPayAPIView(GenericAPIView, MicroserviceBaseView):
 
         payment_method = request.data.get('payment_method', 'alipay')
 
-        # 临时实现：直接标记为已支付
-        order.status = 1
+        # 调用PaymentService内部API创建并处理支付
+        try:
+            payment_result = service_client.post('PaymentService', '/api/payment/create/', {
+                'order_uuid': order.order_id,
+                'payment_method': payment_method,
+                'amount': str(order.total_amount),
+                'payment_subject': f'订单支付 - {order.order_id}'
+            })
 
-        # TODO: 微服务通信：调用PaymentService处理支付
-        # try:
-        #     payment_data = {
-        #         'order_uuid': order.order_id,
-        #         'user_uuid': user_uuid,
-        #         'amount': order.total_amount,
-        #         'payment_method': payment_method,
-        #         'description': f'订单支付 - {order.order_id}'
-        #     }
-        #     payment_result = service_client.post('PaymentService', '/api/payments/', payment_data)
-        #
-        #     if payment_result and payment_result.get('success'):
-        #         order.status = 1  # 已支付
-        #         order.paid_at = timezone.now()
-        #         order.save()
-        #
-        #         return Response({
-        #             'message': '支付成功',
-        #             'payment_id': payment_result.get('payment_id'),
-        #             'order_status': order.status
-        #         })
-        #     else:
-        #         return Response({
-        #             'error': '支付失败',
-        #             'details': payment_result.get('error', '未知错误')
-        #         }, status=status.HTTP_400_BAD_REQUEST)
-        # except Exception as e:
-        #     logger.error(f"调用支付服务失败: {e}")
-        #     return Response({
-        #         'error': '支付系统暂时不可用，请稍后重试'
-        #     }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            if payment_result and payment_result.get('success'):
+                # 内部API会处理状态更新和回写，本服务可根据需要更新本地状态
+                order.status = 1
+                order.payment_time = timezone.now()
+                order.save()
 
-
-        order.payment_time = timezone.now()
-        order.save()
-
-        return Response({
-            'message': '支付成功',
-            'order_status': order.status
-        })
+                return Response({
+                    'message': '支付成功',
+                    'order_status': order.status,
+                    'payment': payment_result.get('data')
+                })
+            else:
+                return Response({
+                    'error': '支付失败',
+                    'details': (payment_result or {}).get('error', '未知错误')
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"调用支付服务失败: {e}")
+            return Response({
+                'error': '支付系统暂时不可用，请稍后重试'
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class OrderCompleteAPIView(GenericAPIView, MicroserviceBaseView):
@@ -374,21 +365,20 @@ class OrderCompleteAPIView(GenericAPIView, MicroserviceBaseView):
         order.status = 2  # 已完成
         order.save()
 
-        # TODO: 微服务通信：完成订单通知
-        # try:
-        #     notification_data = {
-        #         'user_uuid': user_uuid,
-        #         'title': '订单已完成',
-        #         'content': f'您的订单 {order.order_id} 已完成',
-        #         'type': 'order',
-        #         'metadata': {
-        #             'order_id': order.order_id,
-        #             'action': 'completed'
-        #         }
-        #     }
-        #     service_client.post('NotificationService', '/api/notifications/', notification_data)
-        # except Exception as e:
-        #     logger.warning(f"发送订单完成通知失败: {e}")
+        # 完成订单通知
+        try:
+            service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                'user_uuid': str(user_uuid),
+                'title': '订单已完成',
+                'content': f'您的订单 {order.order_id} 已完成',
+                'type': 'order',
+                'related_id': str(order.order_id),
+                'related_data': {
+                    'action': 'completed'
+                }
+            })
+        except Exception as e:
+            logger.warning(f"发送订单完成通知失败: {e}")
 
         return Response({'message': '订单已完成'})
 

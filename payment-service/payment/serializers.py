@@ -41,15 +41,15 @@ class PaymentSerializer(serializers.ModelSerializer):
     def get_order_info(self, obj):
         """获取订单信息"""
         try:
-            # TODO: 调用订单服务获取订单信息
-            # order_data = service_client.get('order-service', f'/api/orders/{obj.order_uuid}/')
-            # if order_data:
-            #     return {
-            #         'order_id': order_data.get('order_id'),
-            #         'total_amount': order_data.get('total_amount'),
-            #         'status': order_data.get('status')
-            #     }
-            pass
+            # 调用订单服务内部接口获取订单详情
+            resp = service_client.get('OrderService', f'/api/orders/internal/{obj.order_uuid}/')
+            if resp and resp.get('success') and resp.get('data'):
+                data = resp.get('data') or {}
+                return {
+                    'order_id': data.get('order_id'),
+                    'total_amount': data.get('total_amount'),
+                    'status': data.get('status')
+                }
         except Exception as e:
             print(f"获取订单信息失败: {e}")
         return None
@@ -79,12 +79,19 @@ class CreatePaymentSerializer(serializers.Serializer):
 
     def validate_order_uuid(self, value):
         """验证订单UUID"""
-        # TODO: 调用订单服务验证订单是否存在且状态正确
-        # order_data = service_client.get('order-service', f'/api/orders/{value}/')
-        # if not order_data:
-        #     raise serializers.ValidationError("订单不存在")
-        # if order_data.get('status') != 0:  # 待支付状态
-        #     raise serializers.ValidationError("订单状态不正确")
+        # 调用订单服务内部接口验证订单是否存在且状态为待支付
+        try:
+            resp = service_client.get('OrderService', f'/api/orders/internal/{value}/')
+            if not resp or not resp.get('success'):
+                raise serializers.ValidationError("订单不存在")
+            data = resp.get('data') or {}
+            if data.get('status') != 0:  # 待支付状态
+                raise serializers.ValidationError("订单状态不正确")
+        except serializers.ValidationError:
+            raise
+        except Exception as e:
+            # 无法联系订单服务时，返回验证失败
+            raise serializers.ValidationError("订单验证失败")
         return value
 
     def create(self, validated_data):

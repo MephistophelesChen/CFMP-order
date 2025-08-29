@@ -13,19 +13,11 @@ notification_urlpatterns = [
     path('unread-count/', views.NotificationUnreadCountAPIView.as_view(), name='notification-unread-count'),  # GET /api/notifications/unread-count/
 ]
 
-# 安全策略接口URL - 兼容原有 /api/security/ 路径
-security_urlpatterns = [
-    path('risk-assessment/', views.RiskAssessmentAPIView.as_view(), name='security-risk-assessment'),  # POST /api/security/risk-assessment/
-    path('fraud-detection/', views.FraudDetectionAPIView.as_view(), name='security-fraud-detection'),  # POST /api/security/fraud-detection/
-    path('policies/', views.SecurityPolicyListAPIView.as_view(), name='security-policies-list'),  # GET/PUT /api/security/policies/
-]
 
 urlpatterns = [
     # 通知接口
     path('notifications/', include(notification_urlpatterns)),
-    # 安全策略接口
-    path('security/', include(security_urlpatterns)),
-    
+
     # 内部微服务通信接口
     path('internal/notifications/create/', views.NotificationCreateAPIView.as_view(), name='notification-create-internal'),
 ]

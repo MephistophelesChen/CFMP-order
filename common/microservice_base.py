@@ -20,14 +20,14 @@ class MicroserviceBaseView(APIView):
     """
 
     def get_user_uuid_from_request(self):
-        """从Apisix网关解析的请求头中获取用户UUID
+        """从Spring Cloud Gateway解析的请求头中获取用户UUID
 
-        微服务通信点：从Apisix网关添加的HTTP头获取用户身份信息
+        微服务通信点：从Spring Cloud Gateway添加的HTTP头获取用户身份信息
         """
-        # 方案1：从Apisix网关添加的HTTP头获取用户UUID
+        # 方案1：从Spring Cloud Gateway添加的HTTP头获取用户UUID
         user_uuid = self.request.META.get('HTTP_X_USER_UUID')
         if user_uuid:
-            logger.debug(f"从Apisix网关获取到用户UUID: {user_uuid}")
+            logger.debug(f"从Spring Cloud Gateway获取到用户UUID: {user_uuid}")
             return user_uuid
 
         # 方案2：从其他可能的头字段获取
@@ -36,7 +36,7 @@ class MicroserviceBaseView(APIView):
             logger.debug(f"从HTTP_X_USER_ID获取到用户UUID: {user_uuid}")
             return user_uuid
 
-        # 方案3：从JWT payload中获取（如果Apisix解析并添加到头中）
+    # 方案3：从JWT payload中获取（如果网关解析并注入到头中）
         user_uuid = self.request.META.get('HTTP_X_JWT_USER_UUID')
         if user_uuid:
             logger.debug(f"从JWT payload获取到用户UUID: {user_uuid}")
@@ -78,8 +78,10 @@ class MicroserviceBaseView(APIView):
         兼容原有API: GET /api/product/{product_id}/
         """
         try:
-            # 兼容原有API路径格式
-            product_data = service_client.get('ProductService', f'/api/product/{product_uuid}/')
+            # 兼容 /api/products/{id}/ 与 /api/product/{id}/ 两种风格
+            product_data = service_client.get('ProductService', f'/api/products/{product_uuid}/')
+            if not product_data:
+                product_data = service_client.get('ProductService', f'/api/product/{product_uuid}/')
             return product_data
         except Exception as e:
             logger.error(f"获取商品信息失败: {e}")
@@ -100,13 +102,46 @@ class MicroserviceBaseView(APIView):
             logger.error(f"恢复商品库存失败: {e}")
             return None
 
+    def create_payment(self, order_uuid, user_uuid, amount, payment_method, subject):
+        """创建支付订单
+
+        微服务通信点：调用PaymentService创建支付
+        """
+        try:
+            # 使用支付服务创建端点（兼容当前实现）
+            result = service_client.post('PaymentService', '/api/payment/create/', {
+                'order_uuid': str(order_uuid),
+                'payment_method': payment_method,
+                'amount': str(amount),
+                'payment_subject': subject
+            })
+            return result
+        except Exception as e:
+            logger.error(f"创建支付订单失败: {e}")
+            return None
+
+    def update_order_status(self, order_uuid, status, **kwargs):
+        """更新订单状态
+
+        微服务通信点：调用OrderService更新订单状态（内部接口）
+        """
+        try:
+            data = {'status': status}
+            data.update(kwargs)
+            result = service_client.patch('OrderService', f'/api/orders/internal/orders/{order_uuid}/', data)
+            return result
+        except Exception as e:
+            logger.error(f"更新订单状态失败: {e}")
+            return None
+
     def send_notification(self, user_uuid, notification_type, title, content, related_id=None):
         """发送通知
 
         微服务通信点：调用NotificationService发送通知
         """
         try:
-            result = service_client.post('NotificationService', '/api/notifications/', {
+            # 使用通知服务的内部创建接口
+            result = service_client.post('NotificationService', '/api/internal/notifications/create/', {
                 'user_uuid': user_uuid,
                 'type': notification_type,
                 'title': title,
@@ -118,37 +153,7 @@ class MicroserviceBaseView(APIView):
             logger.warning(f"发送通知失败: {e}")
             return None
 
-    def create_payment(self, order_uuid, user_uuid, amount, payment_method, subject):
-        """创建支付订单
-
-        微服务通信点：调用PaymentService创建支付
-        """
-        try:
-            result = service_client.post('PaymentService', '/api/payments/', {
-                'order_uuid': order_uuid,
-                'user_uuid': user_uuid,
-                'amount': amount,
-                'payment_method': payment_method,
-                'payment_subject': subject
-            })
-            return result
-        except Exception as e:
-            logger.error(f"创建支付订单失败: {e}")
-            return None
-
-    def update_order_status(self, order_uuid, status, **kwargs):
-        """更新订单状态
-
-        微服务通信点：调用OrderService更新订单状态
-        """
-        try:
-            data = {'status': status}
-            data.update(kwargs)
-            result = service_client.put('OrderService', f'/api/orders/{order_uuid}/', data)
-            return result
-        except Exception as e:
-            logger.error(f"更新订单状态失败: {e}")
-            return None
+    # 已移除重复的 create_payment 与 update_order_status 定义，统一走内部接口与当前支付创建端点
 
 
 class ServiceRegistry:
@@ -167,7 +172,6 @@ class ServiceRegistry:
 
     def is_service_available(self, service_name):
         """检查服务是否可用"""
-        # TODO: 实现服务健康检查
         # 可以通过Nacos或直接调用服务健康检查接口
         return service_name in self.registered_services
 
@@ -180,7 +184,7 @@ class ServiceRegistry:
 service_registry = ServiceRegistry()
 
 # 假设的外部服务状态（实际应从Nacos或服务发现机制获取）
-# TODO: 这些服务需要实际注册到系统中
+# 这些服务需要实际注册到系统中
 EXTERNAL_SERVICES = {
     'UserService': {'port': 8004, 'status': 'assumed_available'},
     'ProductService': {'port': 8005, 'status': 'assumed_available'},

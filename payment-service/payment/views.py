@@ -1,6 +1,6 @@
 """
 支付服务视图 - 微服务版本
-使用Apisix网关解析的用户UUID，避免调用UserService
+使用Spring Cloud Gateway解析的用户UUID，避免调用UserService
 """
 import uuid
 import logging
@@ -37,20 +37,20 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        # 微服务通信：从Apisix网关获取用户UUID
+    # 微服务通信：从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
 
-        # TODO: 调用OrderService验证订单信息
+        # 调用OrderService验证订单信息（内部接口，免认证）
         order_uuid = request.data.get('order_uuid')
         if order_uuid:
-            # order_data = service_client.get('OrderService', f'/api/orders/{order_uuid}/')
-            # if not order_data:
-            #     return Response({'error': '订单不存在'}, status=status.HTTP_400_BAD_REQUEST)
-            # if order_data.get('status') != 0:  # 只能支付待支付的订单
-            #     return Response({'error': '订单状态不允许支付'}, status=status.HTTP_400_BAD_REQUEST)
-            pass
+            order_resp = service_client.get('OrderService', f'/api/orders/internal/{order_uuid}/')
+            if not order_resp or not order_resp.get('success'):
+                return Response({'error': '订单不存在'}, status=http_status.HTTP_400_BAD_REQUEST)
+            order_data = order_resp.get('data') or {}
+            if order_data.get('status') != 0:  # 只能支付待支付的订单
+                return Response({'error': '订单状态不允许支付'}, status=http_status.HTTP_400_BAD_REQUEST)
 
         # 创建支付记录
         serializer = self.get_serializer(
@@ -60,36 +60,35 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
         serializer.is_valid(raise_exception=True)
         payment = serializer.save()
 
-        # TODO: 调用第三方支付接口
+        # 调用第三方支付接口（模拟）
         payment_result = self._process_payment(payment)
 
         if payment_result.get('success'):
-            # TODO: 微服务通信：支付成功后通知订单服务更新状态
-            # try:
-            #     order_update_data = {
-            #         'status': 1,  # 已支付
-            #         'paid_at': timezone.now().isoformat()
-            #     }
-            #     service_client.patch('OrderService', f'/api/orders/{order_uuid}/', order_update_data)
-            # except Exception as e:
-            #     logger.warning(f"更新订单状态失败: {e}")
+            # 支付成功：通知订单服务更新状态
+            try:
+                order_update = {
+                    'status': 1,
+                    'payment_time': timezone.now().isoformat()
+                }
+                service_client.patch('OrderService', f'/api/orders/internal/orders/{order_uuid}/', order_update)
+            except Exception as e:
+                logger.warning(f"更新订单状态失败: {e}")
 
-            # TODO: 微服务通信：发送支付成功通知
-            # try:
-            #     notification_data = {
-            #         'user_uuid': user_uuid,
-            #         'title': '支付成功',
-            #         'content': f'订单 {order_uuid} 支付成功，金额 ¥{payment.amount}',
-            #         'type': 'payment',
-            #         'metadata': {
-            #             'order_uuid': order_uuid,
-            #             'payment_id': payment.payment_id,
-            #             'amount': str(payment.amount)
-            #         }
-            #     }
-            #     service_client.post('NotificationService', '/api/notifications/', notification_data)
-            # except Exception as e:
-            #     logger.warning(f"发送支付成功通知失败: {e}")
+            # 发送支付成功通知
+            try:
+                service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                    'user_uuid': str(user_uuid),
+                    'title': '支付成功',
+                    'content': f'订单 {order_uuid} 支付成功，金额 ¥{payment.amount}',
+                    'type': 'payment',
+                    'related_id': str(order_uuid),
+                    'related_data': {
+                        'payment_id': payment.payment_id,
+                        'amount': str(payment.amount)
+                    }
+                })
+            except Exception as e:
+                logger.warning(f"发送支付成功通知失败: {e}")
 
             response_serializer = PaymentSerializer(payment)
             return Response({
@@ -137,7 +136,7 @@ class PaymentListAPIView(ListAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Payment.objects.none()
@@ -170,7 +169,7 @@ class PaymentDetailAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, payment_id):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
@@ -222,35 +221,31 @@ class PaymentCallbackAPIView(GenericAPIView):
                 payment.paid_at = timezone.now()
             payment.save()
 
-            # TODO: 微服务通信：通知订单服务和通知服务
             if payment_status == 1:  # 支付成功
-                # 更新订单状态
-                # try:
-                #     order_update_data = {
-                #         'status': 1,  # 已支付
-                #         'paid_at': timezone.now().isoformat()
-                #     }
-                #     service_client.patch('OrderService', f'/api/orders/{payment.order_uuid}/', order_update_data)
-                # except Exception as e:
-                #     logger.warning(f"更新订单状态失败: {e}")
+                # 更新订单状态（内部接口）
+                try:
+                    service_client.patch('OrderService', f'/api/orders/internal/orders/{payment.order_uuid}/', {
+                        'status': 1,
+                        'payment_time': timezone.now().isoformat()
+                    })
+                except Exception as e:
+                    logger.warning(f"更新订单状态失败: {e}")
 
                 # 发送支付成功通知
-                # try:
-                #     notification_data = {
-                #         'user_uuid': payment.user_uuid,
-                #         'title': '支付成功',
-                #         'content': f'订单 {payment.order_uuid} 支付成功，金额 ¥{payment.amount}',
-                #         'type': 'payment',
-                #         'metadata': {
-                #             'order_uuid': payment.order_uuid,
-                #             'payment_id': payment.payment_id,
-                #             'amount': str(payment.amount)
-                #         }
-                #     }
-                #     service_client.post('NotificationService', '/api/notifications/', notification_data)
-                # except Exception as e:
-                #     logger.warning(f"发送支付成功通知失败: {e}")
-                pass
+                try:
+                    service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                        'user_uuid': str(payment.user_uuid),
+                        'title': '支付成功',
+                        'content': f'订单 {payment.order_uuid} 支付成功，金额 ¥{payment.amount}',
+                        'type': 'payment',
+                        'related_id': str(payment.order_uuid),
+                        'related_data': {
+                            'payment_id': payment.payment_id,
+                            'amount': str(payment.amount)
+                        }
+                    })
+                except Exception as e:
+                    logger.warning(f"发送支付成功通知失败: {e}")
 
             return Response({'success': True, 'message': '回调处理成功'})
 
@@ -324,7 +319,7 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, payment_id):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
@@ -344,7 +339,7 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
         refund_amount = request.data.get('refund_amount', payment.amount)
         refund_reason = request.data.get('refund_reason', '用户申请退款')
 
-        # TODO: 调用第三方支付接口进行退款
+    # 调用第三方支付接口进行退款（模拟）
         refund_result = self._process_refund(payment, refund_amount, refund_reason)
 
         if refund_result.get('success'):
@@ -352,22 +347,21 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
             payment.status = 3  # 已退款
             payment.save()
 
-            # TODO: 微服务通信：通知订单服务和通知服务
-            # try:
-            #     notification_data = {
-            #         'user_uuid': user_uuid,
-            #         'title': '退款成功',
-            #         'content': f'订单 {payment.order_uuid} 退款成功，金额 ¥{refund_amount}',
-            #         'type': 'refund',
-            #         'metadata': {
-            #             'order_uuid': payment.order_uuid,
-            #             'payment_id': payment.payment_id,
-            #             'refund_amount': str(refund_amount)
-            #         }
-            #     }
-            #     service_client.post('NotificationService', '/api/notifications/', notification_data)
-            # except Exception as e:
-            #     logger.warning(f"发送退款通知失败: {e}")
+            # 发送退款成功通知
+            try:
+                service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                    'user_uuid': str(user_uuid),
+                    'title': '退款成功',
+                    'content': f'订单 {payment.order_uuid} 退款成功，金额 ¥{refund_amount}',
+                    'type': 'refund',
+                    'related_id': str(payment.order_uuid),
+                    'related_data': {
+                        'payment_id': payment.payment_id,
+                        'refund_amount': str(refund_amount)
+                    }
+                })
+            except Exception as e:
+                logger.warning(f"发送退款通知失败: {e}")
 
             return Response({
                 'message': '退款申请提交成功',
@@ -396,7 +390,7 @@ class PaymentStatsAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)

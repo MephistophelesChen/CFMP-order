@@ -1,6 +1,6 @@
 """
 通知服务视图 - 微服务版本
-使用Apisix网关解析的用户UUID，避免调用UserService
+使用Spring Cloud Gateway解析的用户UUID，避免调用UserService
 """
 import uuid
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
@@ -40,7 +40,7 @@ class NotificationListAPIView(ListAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # 微服务通信：从Apisix网关获取用户UUID
+    # 微服务通信：从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Notification.objects.none()
@@ -76,10 +76,15 @@ class NotificationCreateAPIView(CreateAPIView):
 
         # 验证用户UUID是否有效（可选）
         user_uuid = serializer.validated_data.get('user_uuid')
-        # TODO: 调用UserService验证用户是否存在
-        # user_data = service_client.get('UserService', f'/api/users/{user_uuid}/')
-        # if not user_data:
-        #     return Response({'error': '用户不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_data = service_client.get('UserService', f'/api/users/by-uuid/{user_uuid}/')
+            if not user_data:
+                user_data = service_client.get('UserService', f'/api/users/{user_uuid}/')
+            if not user_data:
+                return Response({'error': '用户不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            # 外部服务不可用时，降级为跳过校验
+            pass
 
         notification = serializer.save()
 
@@ -105,7 +110,7 @@ class NotificationMarkReadAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, notification_id):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -129,7 +134,7 @@ class NotificationMarkAllReadAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -153,7 +158,7 @@ class NotificationUnreadCountAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -172,7 +177,7 @@ class NotificationDetailAPIView(GenericAPIView, MicroserviceBaseView):
 
     def get(self, request, notification_id):
         """获取通知详情"""
-        # 从Apisix网关获取用户UUID
+    # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -192,7 +197,7 @@ class NotificationDetailAPIView(GenericAPIView, MicroserviceBaseView):
 
     def delete(self, request, notification_id):
         """删除通知"""
-        # 从Apisix网关获取用户UUID
+        # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -216,7 +221,7 @@ class NotificationDeleteAPIView(GenericAPIView, MicroserviceBaseView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, notification_id):
-        # 从Apisix网关获取用户UUID
+        # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -229,112 +234,3 @@ class NotificationDeleteAPIView(GenericAPIView, MicroserviceBaseView):
 
         notification.delete()
         return Response({'message': '通知已删除'})
-
-
-class SecurityPolicyListAPIView(ListAPIView):
-    """安全策略列表"""
-    queryset = SecurityPolicy.objects.filter(is_enabled=True)
-    serializer_class = SecurityPolicySerializer
-    permission_classes = [IsAdminUser]
-
-
-class SecurityPolicyUpdateAPIView(UpdateAPIView):
-    """更新安全策略"""
-    queryset = SecurityPolicy.objects.all()
-    serializer_class = SecurityPolicySerializer
-    permission_classes = [IsAdminUser]
-    lookup_field = 'policy_id'
-
-
-class RiskAssessmentAPIView(GenericAPIView, MicroserviceBaseView):
-    """风险评估"""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        """执行风险评估"""
-        user_uuid = request.data.get('user_uuid')
-        order_uuid = request.data.get('order_uuid')
-
-        if not user_uuid:
-            # 从Apisix网关获取用户UUID
-            user_uuid = self.get_user_uuid_from_request()
-            if not user_uuid:
-                return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # TODO: 实现风险评估算法
-        risk_score = self._calculate_risk_score(user_uuid, order_uuid)
-        risk_level = self._get_risk_level(risk_score)
-
-        # 创建评估记录
-        assessment = RiskAssessment.objects.create(
-            user_uuid=user_uuid,
-            order_uuid=order_uuid,
-            risk_score=risk_score,
-            risk_level=risk_level,
-            assessment_data={
-                'factors': ['payment_history', 'order_frequency', 'amount_analysis'],
-                'details': '风险评估详细信息'
-            }
-        )
-
-        serializer = RiskAssessmentSerializer(assessment)
-        return Response(serializer.data)
-
-    def _calculate_risk_score(self, user_uuid, order_uuid):
-        """计算风险评分"""
-        # TODO: 实现具体的风险评估算法
-        # 这里返回模拟数据
-        import random
-        return round(random.uniform(0, 100), 2)
-
-    def _get_risk_level(self, score):
-        """根据评分获取风险等级"""
-        if score < 25:
-            return 'low'
-        elif score < 50:
-            return 'medium'
-        elif score < 75:
-            return 'high'
-        else:
-            return 'critical'
-
-
-class FraudDetectionAPIView(GenericAPIView, MicroserviceBaseView):
-    """欺诈检测"""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        """执行欺诈检测"""
-        user_uuid = request.data.get('user_uuid')
-        order_data = request.data.get('order_data', {})
-
-        if not user_uuid:
-            # 从Apisix网关获取用户UUID
-            user_uuid = self.get_user_uuid_from_request()
-            if not user_uuid:
-                return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # TODO: 实现欺诈检测算法
-        is_fraud = self._detect_fraud(user_uuid, order_data)
-        confidence = self._get_confidence_score(user_uuid, order_data)
-
-        result = {
-            'is_fraud': is_fraud,
-            'confidence': confidence,
-            'reasons': ['异常交易时间', '金额超出正常范围'] if is_fraud else [],
-            'recommended_action': 'block' if is_fraud and confidence > 0.8 else 'review'
-        }
-
-        return Response(result)
-
-    def _detect_fraud(self, user_uuid, order_data):
-        """检测是否为欺诈"""
-        # TODO: 实现具体的欺诈检测算法
-        import random
-        return random.choice([True, False])
-
-    def _get_confidence_score(self, user_uuid, order_data):
-        """获取置信度评分"""
-        # TODO: 实现置信度计算
-        import random
-        return round(random.uniform(0, 1), 2)

@@ -17,7 +17,6 @@ except ImportError:
     # 如果无法导入，创建一个模拟的客户端
     class MockServiceClient:
         def get(self, service_name, path):
-            # TODO: 调用其他微服务API（用户服务、商品服务等）
             return None
     service_client = MockServiceClient()
 
@@ -49,28 +48,33 @@ class OrderListSerializer(serializers.ModelSerializer):
 
     def get_buyer_id(self, obj):
         """获取买家ID - 兼容原有API
-        
+
         微服务通信点：需要通过buyer_uuid调用UserService获取用户ID
         """
-        # TODO: 调用UserService获取用户ID
-        # user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
-        # return user_data.get('user_id') if user_data else None
-        
-        # 临时返回UUID作为用户ID（开发阶段）
+        # 优先通过 by-uuid 接口，失败则回退到 /api/users/{uuid}/
+        try:
+            user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
+            if not user_data:
+                user_data = service_client.get('UserService', f'/api/users/{obj.buyer_uuid}/')
+            if user_data and isinstance(user_data, dict):
+                return user_data.get('user_id') or user_data.get('id') or str(obj.buyer_uuid)
+        except Exception:
+            pass
+        # 回退：返回UUID字符串
         return str(obj.buyer_uuid)
 
     def get_buyer_info(self, obj):
         """通过用户服务获取用户信息"""
         try:
-            # TODO: 调用用户服务获取用户信息
-            # user_data = service_client.get('user-service', f'/api/users/{obj.buyer_uuid}/')
-            # if user_data:
-            #     return {
-            #         'user_id': user_data.get('user_id'),
-            #         'username': user_data.get('username'),
-            #         'email': user_data.get('email')
-            #     }
-            pass
+            user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
+            if not user_data:
+                user_data = service_client.get('UserService', f'/api/users/{obj.buyer_uuid}/')
+            if user_data and isinstance(user_data, dict):
+                return {
+                    'user_id': user_data.get('user_id') or user_data.get('id') or str(obj.buyer_uuid),
+                    'username': user_data.get('username') or user_data.get('name') or '',
+                    'email': user_data.get('email') or ''
+                }
         except Exception as e:
             print(f"获取用户信息失败: {e}")
 
@@ -100,11 +104,14 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_buyer_id(self, obj):
         """获取买家ID - 兼容原有API"""
-        # TODO: 调用UserService获取用户ID
-        # user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
-        # return user_data.get('user_id') if user_data else None
-        
-        # 临时返回UUID作为用户ID（开发阶段）
+        try:
+            user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
+            if not user_data:
+                user_data = service_client.get('UserService', f'/api/users/{obj.buyer_uuid}/')
+            if user_data and isinstance(user_data, dict):
+                return user_data.get('user_id') or user_data.get('id') or str(obj.buyer_uuid)
+        except Exception:
+            pass
         return str(obj.buyer_uuid)
 
     def get_shipping_name(self, obj):
@@ -162,6 +169,13 @@ class CreateOrderSerializer(serializers.Serializer):
         products_data = validated_data.pop('products')
         buyer_uuid = self.context['buyer_uuid']
 
+    # TODO(订单冲突检查 - 暂缓实现)：
+    # 需求：在创建订单前检查是否已存在“同一买家、未支付、包含相同商品”的订单，避免重复。
+    # 推荐实现位置：本方法最前面或视图层（views.create）校验完 serializer.is_valid 之后。
+    # 检查维度：buyer_uuid + status==0 + 任一 product_uuid ∈ products_data。
+    # 冲突处理：若存在则抛出 serializers.ValidationError 或在视图层返回 400。
+    # 当前仅保留注释，不启用以保持现有流程。
+
         # 计算总金额
         total_amount = sum(
             float(product['price']) * product['quantity']
@@ -177,18 +191,27 @@ class CreateOrderSerializer(serializers.Serializer):
 
         # 创建订单项
         for product_data in products_data:
-            # TODO: 通过商品服务获取商品信息
-            # product_info = service_client.get(
-            #     'product-service',
-            #     f'/api/products/{product_data["product_uuid"]}/'
-            # )
+            # 通过商品服务获取商品信息（兼容 /api/products/{id}/ 与 /api/product/{id}/）
+            product_info = None
+            try:
+                product_info = service_client.get('ProductService', f"/api/products/{product_data['product_uuid']}/")
+                if not product_info:
+                    product_info = service_client.get('ProductService', f"/api/product/{product_data['product_uuid']}/")
+            except Exception:
+                product_info = None
+
+            product_name = None
+            product_image = None
+            if product_info and isinstance(product_info, dict):
+                product_name = product_info.get('name') or product_info.get('title') or '商品'
+                product_image = product_info.get('image') or product_info.get('thumbnail')
 
             OrderItem.objects.create(
                 order=order,
                 product_uuid=product_data['product_uuid'],
-                product_name='商品名称',  # TODO: 从商品服务获取
+                product_name=product_name or '商品',
                 product_price=product_data['price'],
-                product_image=None,  # TODO: 从商品服务获取
+                product_image=product_image,
                 price=product_data['price'],
                 quantity=product_data['quantity']
             )
