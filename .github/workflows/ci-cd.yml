@@ -1,11 +1,8 @@
 # .github/workflows/ci-cd.yml
 name: CFMP_deploy
-
 on:
   push:
-    branches: [master]
-
-
+    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-latest

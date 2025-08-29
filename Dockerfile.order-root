@@ -29,6 +29,9 @@ RUN apt-get install -y --no-install-recommends \
 
 # 复制并安装Python依赖（从order-service目录）
 COPY order-service/requirements.txt .
+
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+# 升级 pip 和安装构建工具
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制公共模块

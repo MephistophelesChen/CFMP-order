@@ -22,6 +22,9 @@ RUN apt-get update && \
 
 # 复制requirements文件并安装Python依赖
 COPY notification-service/requirements.txt .
+
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+# 升级 pip 和安装构建工具
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制common模块到容器

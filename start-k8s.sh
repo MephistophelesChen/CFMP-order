@@ -49,6 +49,11 @@ fi
 # 部署应用
 echo "部署应用..."
 $KUBECTL apply -f k8s/namespace.yaml
+
+# 确保 MySQL 初始化 ConfigMap 存在（从 sql/init.sql 创建/更新）
+echo "创建/更新 MySQL 初始化 ConfigMap..."
+$KUBECTL -n cfmp-order create configmap mysql-init-config --from-file=init.sql=sql/init.sql --dry-run=client -o yaml | $KUBECTL apply -f -
+
 $KUBECTL delete -f k8s/mysql-deployment.yaml \
                  -f k8s/order-service.yaml \
                  -f k8s/payment-service.yaml \

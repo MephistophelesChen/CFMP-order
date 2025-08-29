@@ -69,10 +69,6 @@ spec:
       volumes:
       - name: logs
         emptyDir: {}
-      initContainers:
-      - name: wait-for-mysql
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z mysql-service 3306; do echo waiting for mysql; sleep 5; done;']
 ---
 apiVersion: v1
 kind: Service
