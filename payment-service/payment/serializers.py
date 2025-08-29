@@ -16,7 +16,7 @@ try:
 except ImportError:
     class MockServiceClient:
         def get(self, service_name, path):
-            # TODO: 调用其他微服务API（订单服务、用户服务等）
+            # 调用其他微服务API（订单服务、用户服务等）
             return None
     service_client = MockServiceClient()
 
@@ -55,16 +55,18 @@ class PaymentSerializer(serializers.ModelSerializer):
         return None
 
     def get_user_info(self, obj):
-        """获取用户信息"""
+        """获取用户信息：调用 UserService 旧 API /user/{id}/
+
+        兼容策略：失败时返回 None，调用方可忽略此字段。
+        """
         try:
-            # TODO: 调用用户服务获取用户信息
-            # user_data = service_client.get('user-service', f'/api/users/{obj.user_uuid}/')
-            # if user_data:
-            #     return {
-            #         'user_id': user_data.get('user_id'),
-            #         'username': user_data.get('username')
-            #     }
-            pass
+            resp = service_client.get('UserService', f'/user/{obj.user_uuid}/')
+            data = (resp or {}).get('data') or None
+            if data:
+                return {
+                    'user_id': data.get('user_id') or str(obj.user_uuid),
+                    'username': data.get('username') or '用户'
+                }
         except Exception as e:
             print(f"获取用户信息失败: {e}")
         return None

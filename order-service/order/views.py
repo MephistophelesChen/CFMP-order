@@ -464,24 +464,25 @@ class OrderInternalAPIView(GenericAPIView):
 
             serializer = OrderDetailSerializer(order, data=update_data, partial=True)
             serializer.is_valid(raise_exception=True)
-            updated_order = serializer.save()
+            serializer.save()
+            # 刷新实例，确保后续读取到最新状态
+            order.refresh_from_db()
 
-            # TODO: 发送状态变更通知
-            # if 'status' in update_data:
-            #     try:
-            #         notification_data = {
-            #             'user_uuid': updated_order.buyer_uuid,
-            #             'title': '订单状态更新',
-            #             'content': f'您的订单 {updated_order.order_id} 状态已更新',
-            #             'type': 'order',
-            #             'metadata': {
-            #                 'order_id': updated_order.order_id,
-            #                 'status': updated_order.status
-            #             }
-            #         }
-            #         service_client.post('NotificationService', '/api/notifications/', notification_data)
-            #     except Exception as e:
-            #         logger.warning(f"发送订单状态变更通知失败: {e}")
+            # 发送状态变更通知（内部接口）
+            if 'status' in update_data:
+                try:
+                    service_client.post('NotificationService', '/api/internal/notifications/create/', {
+                        'user_uuid': str(order.buyer_uuid),
+                        'title': '订单状态更新',
+                        'content': f'您的订单 {order.order_id} 状态已更新',
+                        'type': 'order',
+                        'related_id': str(order.order_id),
+                        'related_data': {
+                            'status': order.status
+                        }
+                    })
+                except Exception as e:
+                    logger.warning(f"发送订单状态变更通知失败: {e}")
 
             return Response({
                 'success': True,

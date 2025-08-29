@@ -3,6 +3,23 @@
 """
 from rest_framework import serializers
 from .models import Notification, SecurityPolicy, RiskAssessment, NOTIFICATION_TYPE_CHOICES
+import sys
+import os
+
+# 添加公共模块路径（用于从各微服务导入 common）
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+COMMON_DIR = os.path.join(os.path.dirname(BASE_DIR), 'common')
+if COMMON_DIR not in sys.path:
+    sys.path.insert(0, COMMON_DIR)
+
+try:
+    from common.service_client import service_client
+except Exception:
+    class MockServiceClient:
+        def get(self, service_name, path):
+            return None
+
+    service_client = MockServiceClient()
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -19,10 +36,26 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_user_info(self, obj):
-        """获取用户信息"""
-        # TODO: 调用用户服务获取用户信息
+        """获取用户信息：调用 UserService 旧 API /user/{id}/
+
+        兼容策略：优先调用旧接口；若失败，返回最小占位信息。
+        """
+        user_uuid = str(obj.user_uuid)
+        try:
+            # 使用旧 API（微服务化后接口定义保持不变）
+            resp = service_client.get('UserService', f'/user/{user_uuid}/')
+            data = (resp or {}).get('data') or None
+            if data:
+                return {
+                    'user_id': data.get('user_id') or user_uuid,
+                    'username': data.get('username') or '用户'
+                }
+        except Exception:
+            pass
+
+        # 兜底占位（避免前端空指针）
         return {
-            'user_id': str(obj.user_uuid),
+            'user_id': user_uuid,
             'username': '用户'
         }
 
