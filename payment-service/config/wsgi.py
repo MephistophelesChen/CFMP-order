@@ -1,5 +1,5 @@
 """
-WSGI config for order service project.
+WSGI config for payment service project.
 """
 import os
 

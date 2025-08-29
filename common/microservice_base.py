@@ -87,20 +87,37 @@ class MicroserviceBaseView(APIView):
             logger.error(f"获取商品信息失败: {e}")
             return None
 
-    def restore_product_stock(self, product_uuid, quantity):
-        """恢复商品库存
+    def update_product_stock(self, product_uuid, quantity: int):
+        """更新商品库存（支持增加或减少）
 
-        微服务通信点：调用ProductService恢复库存
-        这是新增的微服务接口，需要ProductService实现
+        微服务通信点：调用 ProductService 新接口
+        POST /api/product/{product_uuid}/update-stock/
+
+        约定：
+    - 使用字段 quantity 表示库存变化量，正数为增加，负数为减少
+        - 返回体需检查 result.success
         """
         try:
-            result = service_client.post('ProductService', f'/api/product/{product_uuid}/restore-stock/', {
-                'quantity': quantity
-            })
+            result = service_client.post(
+                'ProductService',
+                f'/api/product/{product_uuid}/update-stock/',
+                {
+                    'quantity': int(quantity)
+                }
+            )
+            if not result or not result.get('success'):
+                logger.warning(
+                    f"更新商品库存失败: product={product_uuid}, quantity={quantity}, resp={result}"
+                )
+                return None
             return result
         except Exception as e:
-            logger.error(f"恢复商品库存失败: {e}")
+            logger.error(f"更新商品库存调用异常: {e}")
             return None
+
+    def restore_product_stock(self, product_uuid, quantity: int):
+        """兼容旧方法：恢复商品库存 -> 走新接口 update-stock（正向 delta）"""
+        return self.update_product_stock(product_uuid, quantity=int(quantity))
 
     def create_payment(self, order_uuid, user_uuid, amount, payment_method, subject):
         """创建支付订单
