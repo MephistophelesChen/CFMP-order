@@ -48,41 +48,40 @@ SERVICES = {
     }
 }
 
-# Nacos配置
+# Nacos配置 - 外部服务
 NACOS_CONFIG = {
-    'server_addresses': os.getenv('NACOS_SERVER', '127.0.0.1:8848'),
-    'namespace': os.getenv('NACOS_NAMESPACE', 'cfmp-microservices'),
+    'server_addresses': os.getenv('NACOS_SERVER', '123.57.145.79:8848'),
+    'namespace': os.getenv('NACOS_NAMESPACE', 'public'),
     'group': os.getenv('NACOS_GROUP', 'DEFAULT_GROUP'),
     'username': os.getenv('NACOS_USERNAME', 'nacos'),
     'password': os.getenv('NACOS_PASSWORD', 'nacos')
 }
 
-# 数据库配置 - 优化为统一数据库，分表管理
-# 这样既保持了微服务的逻辑独立性，又避免了数据库资源的冗余
+# 数据库配置 - 容器化MySQL
 DATABASE_CONFIG = {
     'ORDER_DB': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('CFMP_DB_NAME', 'cfmp_microservices'),  # 统一数据库名
-        'USER': os.getenv('CFMP_DB_USER', 'root'),
-        'PASSWORD': os.getenv('CFMP_DB_PASSWORD', '123456'),
-        'HOST': os.getenv('CFMP_DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('CFMP_DB_PORT', '3306'),
+        'NAME': os.getenv('ORDER_DB_NAME', 'cfmp_order'),
+        'USER': os.getenv('ORDER_DB_USER', 'root'),
+        'PASSWORD': os.getenv('ORDER_DB_PASSWORD', 'root123'),
+        'HOST': os.getenv('ORDER_DB_HOST', 'mysql'),  # Docker容器名
+        'PORT': os.getenv('ORDER_DB_PORT', '3306'),
     },
     'PAYMENT_DB': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('CFMP_DB_NAME', 'cfmp_microservices'),  # 统一数据库名
-        'USER': os.getenv('CFMP_DB_USER', 'root'),
-        'PASSWORD': os.getenv('CFMP_DB_PASSWORD', '123456'),
-        'HOST': os.getenv('CFMP_DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('CFMP_DB_PORT', '3306'),
+        'NAME': os.getenv('PAYMENT_DB_NAME', 'cfmp_payment'),
+        'USER': os.getenv('PAYMENT_DB_USER', 'root'),
+        'PASSWORD': os.getenv('PAYMENT_DB_PASSWORD', 'root123'),
+        'HOST': os.getenv('PAYMENT_DB_HOST', 'mysql'),  # Docker容器名
+        'PORT': os.getenv('PAYMENT_DB_PORT', '3306'),
     },
     'NOTIFICATION_DB': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('CFMP_DB_NAME', 'cfmp_microservices'),  # 统一数据库名
-        'USER': os.getenv('CFMP_DB_USER', 'root'),
-        'PASSWORD': os.getenv('CFMP_DB_PASSWORD', '123456'),
-        'HOST': os.getenv('CFMP_DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('CFMP_DB_PORT', '3306'),
+        'NAME': os.getenv('NOTIFICATION_DB_NAME', 'cfmp_notification'),
+        'USER': os.getenv('NOTIFICATION_DB_USER', 'root'),
+        'PASSWORD': os.getenv('NOTIFICATION_DB_PASSWORD', 'root123'),
+        'HOST': os.getenv('NOTIFICATION_DB_HOST', 'mysql'),  # Docker容器名
+        'PORT': os.getenv('NOTIFICATION_DB_PORT', '3306'),
     }
 }
 

@@ -1,23 +1,44 @@
 version: '3.8'
 
 services:
+  # MySQL数据库 - 我们部署的服务
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-server
+    environment:
+      - MYSQL_ROOT_PASSWORD=root123
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    networks:
+      - cfmp-network
+
   # 订单服务
   order-service:
     build:
-      context: ./order-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.order-root
     container_name: cfmp-order-service
     ports:
       - "8001:8001"
     environment:
-      - NACOS_SERVER=${NACOS_SERVER:-127.0.0.1:8848}
+      - NACOS_SERVER=${NACOS_SERVER:-123.57.145.79:8848}
       - NACOS_NAMESPACE=${NACOS_NAMESPACE:-public}
       - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
       - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
       - SERVICE_IP=${SERVICE_IP:-127.0.0.1}
       - SERVICE_PORT=8001
       - DEBUG=True
+      - ORDER_DB_HOST=mysql
+      - ORDER_DB_NAME=cfmp_order
+      - ORDER_DB_USER=root
+      - ORDER_DB_PASSWORD=root123
     command: python manage.py runserver 0.0.0.0:8001
+    depends_on:
+      - mysql
     restart: unless-stopped
     networks:
       - cfmp-network
@@ -25,20 +46,26 @@ services:
   # 支付服务
   payment-service:
     build:
-      context: ./payment-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.payment-root
     container_name: cfmp-payment-service
     ports:
       - "8002:8002"
     environment:
-      - NACOS_SERVER=${NACOS_SERVER:-127.0.0.1:8848}
+      - NACOS_SERVER=${NACOS_SERVER:-123.57.145.79:8848}
       - NACOS_NAMESPACE=${NACOS_NAMESPACE:-public}
       - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
       - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
       - SERVICE_IP=${SERVICE_IP:-127.0.0.1}
       - SERVICE_PORT=8002
       - DEBUG=True
+      - PAYMENT_DB_HOST=mysql
+      - PAYMENT_DB_NAME=cfmp_payment
+      - PAYMENT_DB_USER=root
+      - PAYMENT_DB_PASSWORD=root123
     command: python manage.py runserver 0.0.0.0:8002
+    depends_on:
+      - mysql
     restart: unless-stopped
     networks:
       - cfmp-network
@@ -46,20 +73,26 @@ services:
   # 通知服务
   notification-service:
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.notification-root
     container_name: cfmp-notification-service
     ports:
       - "8003:8003"
     environment:
-      - NACOS_SERVER=${NACOS_SERVER:-127.0.0.1:8848}
+      - NACOS_SERVER=${NACOS_SERVER:-123.57.145.79:8848}
       - NACOS_NAMESPACE=${NACOS_NAMESPACE:-public}
       - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
       - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
       - SERVICE_IP=${SERVICE_IP:-127.0.0.1}
       - SERVICE_PORT=8003
       - DEBUG=True
+      - NOTIFICATION_DB_HOST=mysql
+      - NOTIFICATION_DB_NAME=cfmp_notification
+      - NOTIFICATION_DB_USER=root
+      - NOTIFICATION_DB_PASSWORD=root123
     command: python manage.py runserver 0.0.0.0:8003
+    depends_on:
+      - mysql
     restart: unless-stopped
     networks:
       - cfmp-network
@@ -67,3 +100,6 @@ services:
 networks:
   cfmp-network:
     driver: bridge
+
+volumes:
+  mysql-data:

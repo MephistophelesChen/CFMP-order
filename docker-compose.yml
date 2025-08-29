@@ -1,55 +1,17 @@
 version: '3.8'
 
 services:
-  # Nacos注册中心
-  nacos:
-    image: nacos/nacos-server:v2.3.0
-    container_name: nacos-server
-    environment:
-      - PREFER_HOST_MODE=hostname
-      - MODE=standalone
-      - SPRING_DATASOURCE_PLATFORM=mysql
-      - MYSQL_SERVICE_HOST=mysql
-      - MYSQL_SERVICE_DB_NAME=nacos
-      - MYSQL_SERVICE_USER=nacos
-      - MYSQL_SERVICE_PASSWORD=nacos123
-      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=Asia/Shanghai
-    ports:
-      - "8848:8848"
-      - "9848:9848"
-    depends_on:
-      - mysql
-    restart: unless-stopped
-
-  # MySQL数据库
+  # MySQL数据库 - 我们部署的服务
   mysql:
     image: mysql:8.0
     container_name: mysql-server
     environment:
       - MYSQL_ROOT_PASSWORD=root123
-      - MYSQL_DATABASE=nacos
-      - MYSQL_USER=nacos
-      - MYSQL_PASSWORD=nacos123
     volumes:
       - mysql-data:/var/lib/mysql
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "3306:3306"
-    restart: unless-stopped
-
-  # APISIX网关
-  apisix:
-    image: apache/apisix:latest
-    container_name: apisix-gateway
-    ports:
-      - "9080:9080"
-      - "9091:9091"
-      - "9443:9443"
-    volumes:
-      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml
-      - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml
-    depends_on:
-      - nacos
     restart: unless-stopped
 
   # 订单服务
@@ -61,7 +23,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DEBUG=False
-      - NACOS_SERVER=nacos:8848
+      - NACOS_SERVER=123.57.145.79:8848
       - ORDER_DB_HOST=mysql
       - ORDER_DB_NAME=cfmp_order
       - ORDER_DB_USER=root
@@ -70,7 +32,6 @@ services:
       - "8001:8001"
     depends_on:
       - mysql
-      - nacos
     restart: unless-stopped
     volumes:
       - ./logs/order:/app/logs
@@ -84,7 +45,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DEBUG=False
-      - NACOS_SERVER=nacos:8848
+      - NACOS_SERVER=123.57.145.79:8848
       - PAYMENT_DB_HOST=mysql
       - PAYMENT_DB_NAME=cfmp_payment
       - PAYMENT_DB_USER=root
@@ -93,7 +54,6 @@ services:
       - "8002:8002"
     depends_on:
       - mysql
-      - nacos
     restart: unless-stopped
     volumes:
       - ./logs/payment:/app/logs
@@ -107,7 +67,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DEBUG=False
-      - NACOS_SERVER=nacos:8848
+      - NACOS_SERVER=123.57.145.79:8848
       - NOTIFICATION_DB_HOST=mysql
       - NOTIFICATION_DB_NAME=cfmp_notification
       - NOTIFICATION_DB_USER=root
@@ -116,7 +76,6 @@ services:
       - "8003:8003"
     depends_on:
       - mysql
-      - nacos
     restart: unless-stopped
     volumes:
       - ./logs/notification:/app/logs

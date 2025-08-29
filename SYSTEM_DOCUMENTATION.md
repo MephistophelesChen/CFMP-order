@@ -2,19 +2,19 @@
 
 ## 项目概述
 
-CFMP订单系统是一个基于微服务架构的订单管理系统，包含订单、支付、通知三个核心微服务，使用Apisix作为API网关。
+CFMP订单系统是一个基于微服务架构的订单管理系统，包含订单、支付、通知三个核心微服务。
 
 ## 系统架构
 
 ### 核心微服务
 - **order-service** (端口: 8001) - 订单管理服务
 - **payment-service** (端口: 8002) - 支付处理服务
-- **notification-service** (端口: 8004) - 通知管理服务
+- **notification-service** (端口: 8003) - 通知管理服务
 
 ### 基础设施
-- **Apisix网关** (端口: 9080) - API网关和用户认证
 - **Nacos** (端口: 8848) - 服务注册与发现
 - **MySQL** (端口: 3306) - 数据库服务
+- **Redis** (端口: 6379) - 缓存服务
 
 ### 外部依赖
 - **UserService** - 用户管理与认证（外部）
@@ -22,17 +22,16 @@ CFMP订单系统是一个基于微服务架构的订单管理系统，包含订�
 
 ## 用户认证架构
 
-### Apisix网关认证流程
-1. 客户端发送JWT token到Apisix网关
-2. 网关验证JWT token并解析用户UUID
-3. 网关在HTTP头中添加用户信息：
+### 微服务用户认证
+所有微服务继承`MicroserviceBaseView`基类，通过`get_user_uuid_from_request()`方法获取用户UUID。
+
+用户认证支持以下方式：
+1. **HTTP头认证**: 从请求头中获取用户信息
    - `X-User-UUID`: 主要用户UUID字段
    - `X-User-ID`: 备用用户ID字段
    - `X-JWT-User-UUID`: JWT payload用户UUID
-4. 下游微服务从HTTP头获取用户信息
-
-### 微服务用户认证
-所有微服务继承`MicroserviceBaseView`基类，通过`get_user_uuid_from_request()`方法获取用户UUID：
+2. **JWT Token认证**: 解析JWT token获取用户信息
+3. **外部服务调用**: 调用UserService获取用户信息
 
 ```python
 user_uuid = self.get_user_uuid_from_request()
@@ -42,11 +41,10 @@ if not user_uuid:
 
 ## API路由规则
 
-### 网关路由配置
-- `/api/orders/*` → order-service:8001
-- `/api/payments/*` → payment-service:8002
-- `/api/notifications/*` → notification-service:8004
-- `/api/security/*` → notification-service:8004
+### 直接访问端点
+- **订单服务**: http://localhost:8001/api/orders/
+- **支付服务**: http://localhost:8002/api/payments/
+- **通知服务**: http://localhost:8003/api/notifications/
 
 ### 主要API端点
 
@@ -149,7 +147,7 @@ CFMP-order/
 ├── order-service/          # 订单服务
 ├── payment-service/        # 支付服务
 ├── notification-service/   # 通知服务
-├── apisix/                # 网关配置
+├── k8s/                   # Kubernetes部署配置
 └── docker-compose.yml     # 容器编排
 ```
 
@@ -161,13 +159,18 @@ CFMP-order/
 
 ### 测试验证
 ```bash
-# 测试网关认证
-curl -H "Authorization: Bearer <jwt-token>" \
-     http://localhost:9080/api/orders/
+# 测试订单服务
+curl -H "X-User-UUID: <user-uuid>" \
+     http://localhost:8001/api/orders/
+
+# 测试支付服务
+curl -H "X-User-UUID: <user-uuid>" \
+     http://localhost:8002/api/payments/
 
 # 测试微服务间通信
 curl -X POST http://localhost:8001/api/orders/ \
      -H "Content-Type: application/json" \
+     -H "X-User-UUID: <user-uuid>" \
      -d '{"items": [...]}'
 ```
 
