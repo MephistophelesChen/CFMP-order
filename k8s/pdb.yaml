@@ -1,0 +1,44 @@
+---
+# Order Service PDB - 订单服务中断预算
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-service-pdb
+  namespace: cfmp-order
+  labels:
+    app: order-service
+spec:
+  minAvailable: 1  # 至少保证1个实例运行
+  selector:
+    matchLabels:
+      app: order-service
+
+---
+# Payment Service PDB - 支付服务中断预算（更严格）
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: cfmp-order
+  labels:
+    app: payment-service
+spec:
+  minAvailable: 2  # 支付服务至少保证2个实例，确保高可用
+  selector:
+    matchLabels:
+      app: payment-service
+
+---
+# Notification Service PDB - 通知服务中断预算
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service-pdb
+  namespace: cfmp-order
+  labels:
+    app: notification-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: notification-service

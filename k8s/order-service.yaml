@@ -5,8 +5,15 @@ metadata:
   namespace: cfmp-order
   labels:
     app: order-service
+    tier: backend
+    version: v1
 spec:
-  replicas: 1
+  replicas: 2  # 默认2个副本，将由HPA管理
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
   selector:
     matchLabels:
       app: order-service
@@ -14,13 +21,29 @@ spec:
     metadata:
       labels:
         app: order-service
+        tier: backend
+        version: v1
     spec:
+      affinity:
+        # Pod反亲和性：避免同一节点运行过多相同服务
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - order-service
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: order-service
         image: order-service:latest
-        imagePullPolicy: IfNotPresent  # 允许从镜像仓库拉取
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8001
+          name: http
         env:
         - name: DJANGO_SETTINGS_MODULE
           value: "config.settings"
@@ -44,25 +67,54 @@ spec:
           value: "root123"
         - name: ORDER_DB_PORT
           value: "3306"
+        # 降级功能环境变量
+        - name: ENABLE_CIRCUIT_BREAKER
+          value: "true"
+        - name: PAYMENT_SERVICE_TIMEOUT
+          value: "10"
+        - name: NOTIFICATION_SERVICE_TIMEOUT
+          value: "5"
+        - name: PRODUCT_SERVICE_TIMEOUT
+          value: "8"
+        - name: NODE_PORT
+          value: "30001"
+        - name: NODE_IP
+          value: "101.200.231.225"
+
         resources:
           requests:
             memory: "256Mi"
             cpu: "200m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "1Gi"
+            cpu: "1000m"
+        # 就绪性探针：确保应用完全启动后才接收流量
         readinessProbe:
           httpGet:
             path: /health/
             port: 8001
           initialDelaySeconds: 30
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # 存活性探针：检测应用是否正常运行
         livenessProbe:
           httpGet:
             path: /health/
             port: 8001
           initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # 启动探针：给应用更多时间启动
+        startupProbe:
+          httpGet:
+            path: /health/
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
         volumeMounts:
         - name: logs
           mountPath: /app/logs

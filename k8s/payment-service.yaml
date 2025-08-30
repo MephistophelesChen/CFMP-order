@@ -5,8 +5,15 @@ metadata:
   namespace: cfmp-order
   labels:
     app: payment-service
+    tier: backend
+    version: v1
 spec:
-  replicas: 1
+  replicas: 2  # 支付服务默认2个副本确保高可用
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1    # 支付服务更新时最多允许1个不可用
+      maxSurge: 1
   selector:
     matchLabels:
       app: payment-service
@@ -14,13 +21,28 @@ spec:
     metadata:
       labels:
         app: payment-service
+        tier: backend
+        version: v1
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - payment-service
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: payment-service
         image: payment-service:latest
-        imagePullPolicy: IfNotPresent  # 允许从镜像仓库拉取
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8002
+          name: http
         env:
         - name: DJANGO_SETTINGS_MODULE
           value: "config.settings"
@@ -44,25 +66,52 @@ spec:
           value: "root123"
         - name: PAYMENT_DB_PORT
           value: "3306"
+        # 支付服务特殊配置
+        - name: ENABLE_CIRCUIT_BREAKER
+          value: "true"
+        - name: ORDER_SERVICE_TIMEOUT
+          value: "15"
+        - name: NOTIFICATION_SERVICE_TIMEOUT
+          value: "5"
+        - name: PAYMENT_RETRY_COUNT
+          value: "3"
+        - name: PAYMENT_TIMEOUT
+          value: "30"
+        - name: NODE_PORT
+          value: "30002"
+        - name: NODE_IP
+          value: "101.200.231.225"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "512Mi"  # 支付服务需要更多内存
+            cpu: "300m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "1.5Gi"
+            cpu: "1500m"
         readinessProbe:
           httpGet:
             path: /health/
             port: 8002
           initialDelaySeconds: 30
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         livenessProbe:
           httpGet:
             path: /health/
             port: 8002
           initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/
+            port: 8002
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
         volumeMounts:
         - name: logs
           mountPath: /app/logs

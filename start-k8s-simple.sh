@@ -1,8 +1,6 @@
 #!/bin/bash
 # start-k8s-simple.sh - 简化版K8s部署脚本，适用于CI/CD环境
 
-echo "=== CFMP K8s 简化部署开始 ==="
-
 # 设置kubectl别名
 export KUBECTL="k3s kubectl"
 
@@ -53,23 +51,32 @@ $KUBECTL apply -f k8s/order-service.yaml
 $KUBECTL apply -f k8s/payment-service.yaml
 $KUBECTL apply -f k8s/notification-service.yaml
 
+# 部署自动扩缩容配置
+echo "7. 部署自动扩缩容..."
+$KUBECTL apply -f k8s/hpa.yaml
+$KUBECTL apply -f k8s/pdb.yaml
+$KUBECTL apply -f k8s/circuit-breaker.yaml
+
 # 等待服务就绪
-echo "7. 等待服务就绪..."
+echo "8. 等待服务就绪..."
 $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql --timeout=180s
 $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=order-service --timeout=180s
 $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=payment-service --timeout=180s
 $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=notification-service --timeout=180s
 
 # 运行数据库迁移
-echo "8. 执行数据库迁移..."
+echo "9. 执行数据库迁移..."
 $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py migrate --noinput
 $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py migrate --noinput
 $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py migrate --noinput
 
 # 显示部署状态
-echo "9. 部署状态:"
+echo "10. 部署状态:"
 $KUBECTL -n cfmp-order get pods -o wide
 $KUBECTL -n cfmp-order get services
+$KUBECTL -n cfmp-order get hpa
+$KUBECTL -n cfmp-order get pdb
 
 echo "=== CFMP K8s 部署完成 ==="
 echo "访问端口: 订单服务(30001), 支付服务(30002), 通知服务(30003)"
+echo "自动扩缩容已启用，监控和告警已配置"

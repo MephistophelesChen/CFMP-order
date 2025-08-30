@@ -8,6 +8,7 @@ import threading
 import time
 import socket
 import sys
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +44,11 @@ class NacosClient:
         """获取本机IP地址"""
         try:
             # 创建一个socket连接来获取本机IP
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
-                return s.getsockname()[0]
+            return os.getenv("NODE_IP", "101.200.231.225")
         except Exception:
             return "127.0.0.1"
 
-    def register_service(self, service_name, port=8000, metadata=None):
+    def register_service(self, service_name, port=os.getenv("NODE_PORT",random.randint(30000,32767)), metadata=None):
         """注册服务并启动心跳"""
         if not self.client:
             logger.error("Nacos客户端未初始化")

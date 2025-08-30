@@ -5,8 +5,15 @@ metadata:
   namespace: cfmp-order
   labels:
     app: notification-service
+    tier: backend
+    version: v1
 spec:
-  replicas: 1
+  replicas: 1  # 通知服务默认1个副本
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0    # 通知服务更新时不允许不可用
+      maxSurge: 1
   selector:
     matchLabels:
       app: notification-service
@@ -14,13 +21,16 @@ spec:
     metadata:
       labels:
         app: notification-service
+        tier: backend
+        version: v1
     spec:
       containers:
       - name: notification-service
         image: notification-service:latest
-        imagePullPolicy: IfNotPresent  # 允许从镜像仓库拉取
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8003
+          name: http
         env:
         - name: DJANGO_SETTINGS_MODULE
           value: "config.settings"
@@ -44,10 +54,23 @@ spec:
           value: "root123"
         - name: NOTIFICATION_DB_PORT
           value: "3306"
+        # 通知服务配置
+        - name: ENABLE_CIRCUIT_BREAKER
+          value: "true"
+        - name: USER_SERVICE_TIMEOUT
+          value: "5"
+        - name: NOTIFICATION_BATCH_SIZE
+          value: "100"
+        - name: GRACEFUL_DEGRADATION
+          value: "true"
+        - name: NODE_PORT
+          value: "30003"
+        - name: NODE_IP
+          value: "101.200.231.225"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "128Mi"
+            cpu: "100m"
           limits:
             memory: "512Mi"
             cpu: "500m"
@@ -57,12 +80,24 @@ spec:
             port: 8003
           initialDelaySeconds: 30
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         livenessProbe:
           httpGet:
             path: /health/
             port: 8003
           initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/
+            port: 8003
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
         volumeMounts:
         - name: logs
           mountPath: /app/logs
