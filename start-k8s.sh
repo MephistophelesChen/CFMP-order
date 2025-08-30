@@ -3,34 +3,49 @@
 
 echo "启动 CFMP Kubernetes 应用..."
 
+# 设置超时函数
+timeout_cmd() {
+    local timeout=$1
+    shift
+    local cmd="$@"
+
+    eval "timeout $timeout $cmd" || {
+        echo "命令超时: $cmd"
+        return 1
+    }
+}
 
 
 
 # 构建镜像
 echo "构建订单服务镜像..."
-docker build -t order-service -f Dockerfile.order-root .
+timeout_cmd 300 docker build -t order-service -f Dockerfile.order-root .
 
 echo "构建支付服务镜像..."
-docker build -t payment-service -f Dockerfile.payment-root .
+timeout_cmd 300 docker build -t payment-service -f Dockerfile.payment-root .
 
 echo "构建通知服务镜像..."
-docker build -t notification-service -f Dockerfile.notification-root .
+timeout_cmd 300 docker build -t notification-service -f Dockerfile.notification-root .
 
 export KUBECTL="k3s kubectl"
 
 # 若存在 k3s，则将镜像导入到 k3s 的 containerd 中
 if command -v k3s >/dev/null 2>&1; then
   echo "将镜像导入 K3s..."
+
+  echo "导入订单服务镜像..."
   docker save order-service:latest -o order-service.tar
-  k3s ctr images import order-service.tar
+  k3s ctr images import order-service.tar || echo "订单服务镜像导入失败，继续执行..."
   rm -f order-service.tar || true
 
+  echo "导入支付服务镜像..."
   docker save payment-service:latest -o payment-service.tar
-  k3s ctr images import payment-service.tar
+  k3s ctr images import payment-service.tar || echo "支付服务镜像导入失败，继续执行..."
   rm -f payment-service.tar || true
 
+  echo "导入通知服务镜像..."
   docker save notification-service:latest -o notification-service.tar
-  k3s ctr images import notification-service.tar
+  k3s ctr images import notification-service.tar || echo "通知服务镜像导入失败，继续执行..."
   rm -f notification-service.tar || true
 else
   echo "未检测到 k3s，跳过 ctr 导入。请确保集群节点可访问到该镜像（例如在同一 Docker 宿主或推送到镜像仓库）。"
@@ -42,7 +57,7 @@ echo "准备 mysql:8.0 镜像..."
 if command -v k3s >/dev/null 2>&1; then
   echo "将 mysql:8.0 镜像导入 K3s..."
   docker save mysql:8.0 -o mysql.tar
-  k3s ctr images import mysql.tar
+  k3s ctr images import mysql.tar || echo "MySQL镜像导入失败，继续执行..."
   rm -f mysql.tar || true
 fi
 
