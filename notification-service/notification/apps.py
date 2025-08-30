@@ -57,7 +57,7 @@ class NotificationConfig(AppConfig):
         """获取Django服务实际使用的端口"""
         try:
             # 从环境变量获取
-            port = os.getenv('SERVICE_PORT')
+            port = os.getenv('NODE_PORT')
             if port:
                 return int(port)
 

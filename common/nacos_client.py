@@ -24,7 +24,7 @@ class NacosClient:
         self.group_name = os.getenv('NACOS_GROUP', 'DEFAULT_GROUP')
 
         # 获取本机IP，优先使用环境变量，否则自动检测
-        self.local_ip = os.getenv('SERVICE_IP', self._get_local_ip())        # 心跳线程控制
+        self.local_ip = os.getenv('NODE_IP', self._get_local_ip())        # 心跳线程控制
         self._heartbeat_threads = {}
         self._stop_heartbeat = {}
 
@@ -59,7 +59,7 @@ class NacosClient:
             result = self.client.add_naming_instance(
                 service_name=service_name,
                 ip=self.local_ip,
-                port=port,
+                port="NODE_PORT",
                 cluster_name="DEFAULT",
                 healthy=True,
                 metadata=metadata or {}
@@ -133,7 +133,7 @@ class NacosClient:
             logger.error(f"服务发现失败: {e}")
             return []
 
-    def deregister_service(self, service_name, port=8000):
+    def deregister_service(self, service_name, port=os.getenv("NODE_PORT")):
         """注销服务并停止心跳"""
         if not self.client:
             logger.error("Nacos客户端未初始化")
