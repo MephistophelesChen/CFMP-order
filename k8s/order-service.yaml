@@ -88,33 +88,6 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "1000m"
-        # 就绪性探针：确保应用完全启动后才接收流量
-        readinessProbe:
-          httpGet:
-            path: /health/
-            port: 8001
-          initialDelaySeconds: 30
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
-        # 存活性探针：检测应用是否正常运行
-        livenessProbe:
-          httpGet:
-            path: /health/
-            port: 8001
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        # 启动探针：给应用更多时间启动
-        startupProbe:
-          httpGet:
-            path: /health/
-            port: 8001
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 30
         volumeMounts:
         - name: logs
           mountPath: /app/logs

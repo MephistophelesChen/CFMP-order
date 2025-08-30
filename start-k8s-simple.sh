@@ -45,33 +45,41 @@ $KUBECTL delete -f k8s/mysql-deployment.yaml -f k8s/order-service.yaml -f k8s/pa
 sleep 5
 
 # 部署新版本
-echo "6. 部署新版本..."
+echo "6. 首先部署MySQL..."
 $KUBECTL apply -f k8s/mysql-deployment.yaml
+
+# 等待MySQL完全启动
+echo "7. 等待MySQL完全启动..."
+$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql --timeout=300s
+echo "  MySQL已就绪，开始部署应用服务..."
+
+# 部署应用服务
+echo "8. 部署应用服务..."
 $KUBECTL apply -f k8s/order-service.yaml
 $KUBECTL apply -f k8s/payment-service.yaml
 $KUBECTL apply -f k8s/notification-service.yaml
 
 # 部署自动扩缩容配置
-echo "7. 部署自动扩缩容..."
+echo "9. 部署自动扩缩容..."
 $KUBECTL apply -f k8s/hpa.yaml
 $KUBECTL apply -f k8s/pdb.yaml
 $KUBECTL apply -f k8s/circuit-breaker.yaml
 
-# 等待服务就绪
-echo "8. 等待服务就绪..."
-$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql --timeout=180s
-$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=order-service --timeout=180s
-$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=payment-service --timeout=180s
-$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=notification-service --timeout=180s
+# 等待服务部署完成
+echo "10. 等待应用服务启动（30秒）..."
+sleep 30
+
+echo "  检查服务状态..."
+$KUBECTL -n cfmp-order get pods
 
 # 运行数据库迁移
-echo "9. 执行数据库迁移..."
+echo "11. 执行数据库迁移..."
 $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py migrate --noinput
 $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py migrate --noinput
 $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py migrate --noinput
 
 # 显示部署状态
-echo "10. 部署状态:"
+echo "12. 部署状态:"
 $KUBECTL -n cfmp-order get pods -o wide
 $KUBECTL -n cfmp-order get services
 $KUBECTL -n cfmp-order get hpa
