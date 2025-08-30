@@ -37,7 +37,7 @@ class NotificationListAPIView(ListAPIView, MicroserviceBaseView):
     """
     serializer_class = NotificationSerializer
     pagination_class = StandardPagination
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
     # 微服务通信：从Spring Cloud Gateway获取用户UUID
@@ -67,7 +67,7 @@ class NotificationCreateAPIView(CreateAPIView):
     微服务通信点：接收其他服务的通知创建请求
     """
     serializer_class = CreateNotificationSerializer
-    permission_classes = [AllowAny]  # 内部微服务调用，暂不需要用户认证
+    # permission_classes = [AllowAny]  # 内部微服务调用，暂不需要用户认证
 
     def create(self, request, *args, **kwargs):
         """创建通知 - 供OrderService、PaymentService等调用"""
@@ -107,7 +107,7 @@ class NotificationCreateAPIView(CreateAPIView):
 
 class NotificationMarkReadAPIView(GenericAPIView, MicroserviceBaseView):
     """标记通知为已读"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, notification_id):
     # 从Spring Cloud Gateway获取用户UUID
@@ -131,7 +131,7 @@ class NotificationMarkReadAPIView(GenericAPIView, MicroserviceBaseView):
 
 class NotificationMarkAllReadAPIView(GenericAPIView, MicroserviceBaseView):
     """标记所有通知为已读"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request):
     # 从Spring Cloud Gateway获取用户UUID
@@ -155,7 +155,7 @@ class NotificationMarkAllReadAPIView(GenericAPIView, MicroserviceBaseView):
 
 class NotificationUnreadCountAPIView(GenericAPIView, MicroserviceBaseView):
     """获取未读通知数量"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
     # 从Spring Cloud Gateway获取用户UUID
@@ -173,7 +173,7 @@ class NotificationUnreadCountAPIView(GenericAPIView, MicroserviceBaseView):
 
 class NotificationDetailAPIView(GenericAPIView, MicroserviceBaseView):
     """通知详情 - 兼容原有API GET/DELETE /api/notifications/{notification_id}/"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, notification_id):
         """获取通知详情"""
@@ -218,7 +218,7 @@ class NotificationDetailAPIView(GenericAPIView, MicroserviceBaseView):
 
 class NotificationDeleteAPIView(GenericAPIView, MicroserviceBaseView):
     """删除通知"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def delete(self, request, notification_id):
         # 从Spring Cloud Gateway获取用户UUID

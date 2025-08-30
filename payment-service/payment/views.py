@@ -34,7 +34,7 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
     2. 创建支付后：调用NotificationService发送支付通知
     """
     serializer_class = CreatePaymentSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
     # 微服务通信：从Spring Cloud Gateway获取用户UUID
@@ -133,7 +133,7 @@ class PaymentListAPIView(ListAPIView, MicroserviceBaseView):
     """支付记录列表"""
     serializer_class = PaymentSerializer
     pagination_class = StandardPagination
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
     # 从Spring Cloud Gateway获取用户UUID
@@ -166,7 +166,7 @@ class PaymentListAPIView(ListAPIView, MicroserviceBaseView):
 
 class PaymentDetailAPIView(GenericAPIView, MicroserviceBaseView):
     """支付详情"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, payment_id):
     # 从Spring Cloud Gateway获取用户UUID
@@ -190,7 +190,7 @@ class PaymentDetailAPIView(GenericAPIView, MicroserviceBaseView):
 
 class PaymentCallbackAPIView(GenericAPIView):
     """支付回调处理 - 第三方支付平台回调"""
-    permission_classes = [AllowAny]  # 支付回调不需要用户认证
+    # permission_classes = [AllowAny]  # 支付回调不需要用户认证
 
     def post(self, request):
         """处理支付回调"""
@@ -258,7 +258,7 @@ class PaymentCallbackAPIView(GenericAPIView):
 
 class PaymentQueryByOrderAPIView(GenericAPIView, MicroserviceBaseView):
     """通过订单ID查询支付记录"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, order_id):
         user_uuid = self.get_user_uuid_from_request()
@@ -286,7 +286,7 @@ class PaymentRecordsAPIView(PaymentListAPIView):
 
 class PaymentCancelAPIView(GenericAPIView, MicroserviceBaseView):
     """取消支付"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, payment_id):
         user_uuid = self.get_user_uuid_from_request()
@@ -316,7 +316,7 @@ class PaymentCancelAPIView(GenericAPIView, MicroserviceBaseView):
 
 class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
     """支付退款"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, payment_id):
     # 从Spring Cloud Gateway获取用户UUID
@@ -387,7 +387,7 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
 
 class PaymentStatsAPIView(GenericAPIView, MicroserviceBaseView):
     """支付统计"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
     # 从Spring Cloud Gateway获取用户UUID
@@ -419,7 +419,7 @@ class PaymentStatsAPIView(GenericAPIView, MicroserviceBaseView):
 
 class PaymentInternalAPIView(GenericAPIView):
     """内部支付API - 供其他微服务调用"""
-    permission_classes = [AllowAny]  # 内部API不需要用户认证
+    # permission_classes = [AllowAny]  # 内部API不需要用户认证
 
     def get(self, request, payment_id):
         """获取支付信息 - 供OrderService等调用"""

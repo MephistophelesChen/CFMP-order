@@ -40,7 +40,7 @@ class OrderListCreateAPIView(ListCreateAPIView, MicroserviceBaseView):
     """订单列表和创建"""
     serializer_class = OrderListSerializer
     pagination_class = StandardPagination
-    permission_classes = [IsAuthenticated]
+   # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """获取当前用户的订单"""
@@ -170,7 +170,7 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView, MicroserviceBaseView):
     """订单详情、更新、删除"""
     queryset = Order.objects.all()
     serializer_class = OrderDetailSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     lookup_field = 'order_id'
 
     def get_queryset(self):
@@ -246,7 +246,7 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView, MicroserviceBaseView):
 
 class OrderCancelAPIView(GenericAPIView, MicroserviceBaseView):
     """取消订单"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, order_id):
         user_uuid = self.get_user_uuid_from_request()
@@ -288,7 +288,7 @@ class OrderCancelAPIView(GenericAPIView, MicroserviceBaseView):
 
 class OrderPayAPIView(GenericAPIView, MicroserviceBaseView):
     """订单支付"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, order_id):
         user_uuid = self.get_user_uuid_from_request()
@@ -343,7 +343,7 @@ class OrderPayAPIView(GenericAPIView, MicroserviceBaseView):
 
 class OrderCompleteAPIView(GenericAPIView, MicroserviceBaseView):
     """完成订单"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, order_id):
         user_uuid = self.get_user_uuid_from_request()
@@ -386,7 +386,7 @@ class OrderCompleteAPIView(GenericAPIView, MicroserviceBaseView):
 class OrderDetailByUUIDAPIView(RetrieveAPIView, MicroserviceBaseView):
     """通过UUID获取订单详情 - 供内部服务调用"""
     serializer_class = OrderDetailSerializer
-    permission_classes = [AllowAny]  # 内部API不需要用户认证
+    # permission_classes = [AllowAny]  # 内部API不需要用户认证
     lookup_field = 'order_uuid'
 
     def get_queryset(self):
@@ -404,7 +404,7 @@ class OrderDetailByUUIDAPIView(RetrieveAPIView, MicroserviceBaseView):
 
 class OrderStatsAPIView(GenericAPIView, MicroserviceBaseView):
     """订单统计"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user_uuid = self.get_user_uuid_from_request()
@@ -436,7 +436,7 @@ class OrderStatsAPIView(GenericAPIView, MicroserviceBaseView):
 
 class OrderInternalAPIView(GenericAPIView):
     """内部订单API - 供其他微服务调用"""
-    permission_classes = [AllowAny]  # 内部API不需要用户认证
+    # permission_classes = [AllowAny]  # 内部API不需要用户认证
 
     def get(self, request, order_id):
         """获取订单信息 - 供PaymentService等调用"""
@@ -500,7 +500,7 @@ class OrderListAPIView(ListAPIView, MicroserviceBaseView):
     """订单列表 - 兼容原有API /api/orders/"""
     serializer_class = OrderListSerializer
     pagination_class = StandardPagination
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user_uuid = self.get_user_uuid_from_request()
