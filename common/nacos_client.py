@@ -48,18 +48,22 @@ class NacosClient:
         except Exception:
             return "127.0.0.1"
 
-    def register_service(self, service_name, port=os.getenv("NODE_PORT",random.randint(30000,32767)), metadata=None):
+    def register_service(self, service_name, port=None, metadata=None):
         """注册服务并启动心跳"""
         if not self.client:
             logger.error("Nacos客户端未初始化")
             return False
+
+        # 如果没有传入端口，从环境变量获取
+        if port is None:
+            port = int(os.getenv("NODE_PORT", random.randint(30000, 32767)))
 
         try:
             # 注册服务实例
             result = self.client.add_naming_instance(
                 service_name=service_name,
                 ip=self.local_ip,
-                port="NODE_PORT",
+                port=port,
                 cluster_name="DEFAULT",
                 healthy=True,
                 metadata=metadata or {}
@@ -133,11 +137,15 @@ class NacosClient:
             logger.error(f"服务发现失败: {e}")
             return []
 
-    def deregister_service(self, service_name, port=os.getenv("NODE_PORT")):
+    def deregister_service(self, service_name, port=None):
         """注销服务并停止心跳"""
         if not self.client:
             logger.error("Nacos客户端未初始化")
             return False
+
+        # 如果没有传入端口，从环境变量获取
+        if port is None:
+            port = int(os.getenv("NODE_PORT", 30000))
 
         try:
             # 停止心跳
