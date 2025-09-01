@@ -33,7 +33,7 @@ class MicroserviceBaseView(APIView):
             'HTTP_USER_UUID',         # User-UUID
             'HTTP_USER_ID',           # User-ID
         ]
-        
+
         for header_name in possible_headers:
             user_uuid = self.request.META.get(header_name)
             if user_uuid:
@@ -198,7 +198,6 @@ class ServiceRegistry:
 # 全局服务注册表实例
 service_registry = ServiceRegistry()
 
-# 假设的外部服务状态（实际应从Nacos或服务发现机制获取）
 # 这些服务需要实际注册到系统中
 EXTERNAL_SERVICES = {
     'UserService': {'port': 8004, 'status': 'assumed_available'},

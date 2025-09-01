@@ -24,7 +24,6 @@ SERVICES = {
         'version': '1.0.0',
         'status': 'implemented'
     },
-    # 外部微服务（假设存在，需要注册）
     'USER_SERVICE': {
         'name': 'UserService',
         'port': 8004,
