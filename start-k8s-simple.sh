@@ -42,6 +42,7 @@ $KUBECTL -n cfmp-order create configmap mysql-init-config --from-file=init.sql=s
 # 删除旧部署（保留数据存储）
 echo "5. 清理旧部署（保留数据存储）..."
 $KUBECTL delete deployment mysql -n cfmp-order --ignore-not-found=true
+$KUBECTL delete deployment mysql-service -n cfmp-order --ignore-not-found=true
 $KUBECTL delete service mysql-service -n cfmp-order --ignore-not-found=true
 $KUBECTL delete -f k8s/order-service.yaml -f k8s/payment-service.yaml -f k8s/notification-service.yaml --ignore-not-found=true
 sleep 5
@@ -52,7 +53,7 @@ $KUBECTL apply -f k8s/mysql-deployment.yaml
 
 # 等待MySQL完全启动
 echo "7. 等待MySQL完全启动..."
-$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql --timeout=300s
+$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql-service --timeout=300s
 echo "  MySQL已就绪，开始部署应用服务..."
 
 # 部署应用服务

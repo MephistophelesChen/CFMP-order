@@ -32,19 +32,19 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql
+  name: mysql-service
   namespace: cfmp-order
   labels:
-    app: mysql
+    app: mysql-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mysql
+      app: mysql-service
   template:
     metadata:
       labels:
-        app: mysql
+        app: mysql-service
     spec:
       containers:
       - name: mysql
@@ -98,7 +98,7 @@ metadata:
   namespace: cfmp-order
 spec:
   selector:
-    app: mysql
+    app: mysql-service
   ports:
   - port: 3306
     targetPort: 3306
