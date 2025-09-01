@@ -8,7 +8,7 @@ metadata:
     tier: backend
     version: v1
 spec:
-  replicas: 2  # 支付服务默认2个副本确保高可用
+  replicas: 1  # 支付服务默认1个副本，降低基础负担
   strategy:
     type: RollingUpdate
     rollingUpdate:

@@ -8,7 +8,7 @@ metadata:
     tier: backend
     version: v1
 spec:
-  replicas: 2  # 默认2个副本，将由HPA管理
+  replicas: 1  # 默认1个副本，由HPA管理扩容
   strategy:
     type: RollingUpdate
     rollingUpdate:

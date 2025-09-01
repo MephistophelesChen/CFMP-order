@@ -61,7 +61,7 @@ $KUBECTL apply -f k8s/notification-service.yaml
 
 # 部署自动扩缩容配置
 echo "9. 部署自动扩缩容..."
-$KUBECTL apply -f k8s/hpa.yaml
+$KUBECTL apply -f k8s/hpa-optimized.yaml
 $KUBECTL apply -f k8s/pdb.yaml
 $KUBECTL apply -f k8s/circuit-breaker.yaml
 

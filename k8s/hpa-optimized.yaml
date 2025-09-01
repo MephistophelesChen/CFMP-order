@@ -1,0 +1,119 @@
+---
+# 精简优化版 HPA 配置 - 专门解决流量突发问题
+# 无需额外组件，直接替换原有HPA即可
+
+# Order Service HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service-hpa
+  namespace: cfmp-order
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 1  # 订单服务最小1个实例
+  maxReplicas: 15  # 订单服务激进，最高扩容数量
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 45  # 订单服务激进，低阈值触发
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 10  # 订单服务最快响应
+      policies:
+      - type: Percent
+        value: 400  # 允许5倍扩容 (1→5个)
+        periodSeconds: 20  # 更短周期
+      - type: Pods
+        value: 8  # 或者直接增加8个Pod (激进)
+        periodSeconds: 20
+      selectPolicy: Max  # 选择最激进的策略
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 缩容保持稳定
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+
+---
+# Payment Service HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+  namespace: cfmp-order
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 1  # 支付服务最小1个实例
+  maxReplicas: 8  # 支付服务中等扩容上限
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 55  # 支付服务中等触发阈值
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30  # 支付服务中等响应速度
+      policies:
+      - type: Percent
+        value: 200  # 允许3倍扩容 (1→3个)
+        periodSeconds: 45  # 中等周期
+      - type: Pods
+        value: 3  # 或者直接增加3个Pod (中等)
+        periodSeconds: 45
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 600  # 支付服务缩容更保守
+      policies:
+      - type: Percent
+        value: 20
+        periodSeconds: 120
+
+---
+# Notification Service HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notification-service-hpa
+  namespace: cfmp-order
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notification-service
+  minReplicas: 1  # 通知服务最小1个实例
+  maxReplicas: 5  # 通知服务谨慎，较低上限
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75  # 通知服务谨慎，高阈值触发
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60  # 通知服务谨慎，较慢响应
+      policies:
+      - type: Percent
+        value: 100  # 只允许2倍扩容 (1→2个)
+        periodSeconds: 90  # 较长周期
+      - type: Pods
+        value: 1  # 或者只增加1个Pod (谨慎)
+        periodSeconds: 90
+      selectPolicy: Min  # 选择保守策略
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+      - type: Percent
+        value: 30
+        periodSeconds: 60
