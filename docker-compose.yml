@@ -1,10 +1,9 @@
 version: '3.8'
 
 services:
-  # MySQL数据库 - 我们部署的服务
-  mysql:
+  mysql-service:
     image: mysql:8.0
-    container_name: mysql-server
+    container_name: mysql-service
     environment:
       - MYSQL_ROOT_PASSWORD=root123
     volumes:
@@ -24,14 +23,14 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DEBUG=False
       - NACOS_SERVER=123.57.145.79:8848
-      - ORDER_DB_HOST=mysql
+      - ORDER_DB_HOST=mysql-service
       - ORDER_DB_NAME=cfmp_order
       - ORDER_DB_USER=root
       - ORDER_DB_PASSWORD=root123
     ports:
       - "8001:8001"
     depends_on:
-      - mysql
+      - mysql-service
     restart: unless-stopped
     volumes:
       - ./logs/order:/app/logs
@@ -46,14 +45,14 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DEBUG=False
       - NACOS_SERVER=123.57.145.79:8848
-      - PAYMENT_DB_HOST=mysql
+      - PAYMENT_DB_HOST=mysql-service
       - PAYMENT_DB_NAME=cfmp_payment
       - PAYMENT_DB_USER=root
       - PAYMENT_DB_PASSWORD=root123
     ports:
       - "8002:8002"
     depends_on:
-      - mysql
+      - mysql-service
     restart: unless-stopped
     volumes:
       - ./logs/payment:/app/logs

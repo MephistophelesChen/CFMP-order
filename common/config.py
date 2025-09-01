@@ -63,7 +63,7 @@ DATABASE_CONFIG = {
         'NAME': os.getenv('ORDER_DB_NAME', 'cfmp_order'),
         'USER': os.getenv('ORDER_DB_USER', 'root'),
         'PASSWORD': os.getenv('ORDER_DB_PASSWORD', 'root123'),
-        'HOST': os.getenv('ORDER_DB_HOST', 'mysql'),  # Docker容器名
+        'HOST': os.getenv('ORDER_DB_HOST', 'mysql-service'),  # K8s环境默认使用mysql-service
         'PORT': os.getenv('ORDER_DB_PORT', '3306'),
     },
     'PAYMENT_DB': {
@@ -71,7 +71,7 @@ DATABASE_CONFIG = {
         'NAME': os.getenv('PAYMENT_DB_NAME', 'cfmp_payment'),
         'USER': os.getenv('PAYMENT_DB_USER', 'root'),
         'PASSWORD': os.getenv('PAYMENT_DB_PASSWORD', 'root123'),
-        'HOST': os.getenv('PAYMENT_DB_HOST', 'mysql'),  # Docker容器名
+        'HOST': os.getenv('PAYMENT_DB_HOST', 'mysql-service'),  # K8s环境默认使用mysql-service
         'PORT': os.getenv('PAYMENT_DB_PORT', '3306'),
     },
     'NOTIFICATION_DB': {
@@ -79,7 +79,7 @@ DATABASE_CONFIG = {
         'NAME': os.getenv('NOTIFICATION_DB_NAME', 'cfmp_notification'),
         'USER': os.getenv('NOTIFICATION_DB_USER', 'root'),
         'PASSWORD': os.getenv('NOTIFICATION_DB_PASSWORD', 'root123'),
-        'HOST': os.getenv('NOTIFICATION_DB_HOST', 'mysql'),  # Docker容器名
+        'HOST': os.getenv('NOTIFICATION_DB_HOST', 'mysql-service'),  # K8s环境默认使用mysql-service
         'PORT': os.getenv('NOTIFICATION_DB_PORT', '3306'),
     }
 }
