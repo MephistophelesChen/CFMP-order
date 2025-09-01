@@ -55,17 +55,17 @@ class PaymentSerializer(serializers.ModelSerializer):
         return None
 
     def get_user_info(self, obj):
-        """获取用户信息：调用 UserService 旧 API /user/{id}/
+        """获取用户信息：调用 UserService API /api/v1/user/
 
         兼容策略：失败时返回 None，调用方可忽略此字段。
         """
         try:
-            resp = service_client.get('UserService', f'/user/{obj.user_uuid}/')
+            resp = service_client.get('UserService', f'/api/v1/user/{obj.user_uuid}/')
             data = (resp or {}).get('data') or None
             if data:
                 return {
-                    'user_id': data.get('user_id') or str(obj.user_uuid),
-                    'username': data.get('username') or '用户'
+                    'user_id': data.get('user_id') or data.get('id') or str(obj.user_uuid),
+                    'username': data.get('username') or data.get('name') or '用户'
                 }
         except Exception as e:
             print(f"获取用户信息失败: {e}")

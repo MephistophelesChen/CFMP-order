@@ -51,11 +51,8 @@ class OrderListSerializer(serializers.ModelSerializer):
 
         微服务通信点：需要通过buyer_uuid调用UserService获取用户ID
         """
-        # 优先通过 by-uuid 接口，失败则回退到 /api/users/{uuid}/
         try:
-            user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
-            if not user_data:
-                user_data = service_client.get('UserService', f'/api/users/{obj.buyer_uuid}/')
+            user_data = service_client.get('UserService', f'/api/v1/user/{obj.buyer_uuid}/')
             if user_data and isinstance(user_data, dict):
                 return user_data.get('user_id') or user_data.get('id') or str(obj.buyer_uuid)
         except Exception:
@@ -66,9 +63,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     def get_buyer_info(self, obj):
         """通过用户服务获取用户信息"""
         try:
-            user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
-            if not user_data:
-                user_data = service_client.get('UserService', f'/api/users/{obj.buyer_uuid}/')
+            user_data = service_client.get('UserService', f'/api/v1/user/{obj.buyer_uuid}/')
             if user_data and isinstance(user_data, dict):
                 return {
                     'user_id': user_data.get('user_id') or user_data.get('id') or str(obj.buyer_uuid),
@@ -105,9 +100,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     def get_buyer_id(self, obj):
         """获取买家ID - 兼容原有API"""
         try:
-            user_data = service_client.get('UserService', f'/api/users/by-uuid/{obj.buyer_uuid}/')
-            if not user_data:
-                user_data = service_client.get('UserService', f'/api/users/{obj.buyer_uuid}/')
+            user_data = service_client.get('UserService', f'/api/v1/user/{obj.buyer_uuid}/')
             if user_data and isinstance(user_data, dict):
                 return user_data.get('user_id') or user_data.get('id') or str(obj.buyer_uuid)
         except Exception:

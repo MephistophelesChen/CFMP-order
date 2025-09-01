@@ -36,22 +36,21 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_user_info(self, obj):
-        """获取用户信息：调用 UserService 旧 API /user/{id}/
+        """获取用户信息：调用 UserService API /api/v1/user/
 
-        兼容策略：优先调用旧接口；若失败，返回最小占位信息。
+        兼容策略：若失败，返回最小占位信息。
         """
         user_uuid = str(obj.user_uuid)
         try:
-            # 使用旧 API（微服务化后接口定义保持不变）
-            resp = service_client.get('UserService', f'/user/{user_uuid}/')
+            resp = service_client.get('UserService', f'/api/v1/user/{user_uuid}/')
             data = (resp or {}).get('data') or None
             if data:
                 return {
-                    'user_id': data.get('user_id') or user_uuid,
-                    'username': data.get('username') or '用户'
+                    'user_id': data.get('user_id') or data.get('id') or user_uuid,
+                    'username': data.get('username') or data.get('name') or '用户'
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"获取用户信息失败: {e}")
 
         # 兜底占位（避免前端空指针）
         return {

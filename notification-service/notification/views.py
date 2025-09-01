@@ -77,9 +77,7 @@ class NotificationCreateAPIView(CreateAPIView):
         # 验证用户UUID是否有效（可选）
         user_uuid = serializer.validated_data.get('user_uuid')
         try:
-            user_data = service_client.get('UserService', f'/api/users/by-uuid/{user_uuid}/')
-            if not user_data:
-                user_data = service_client.get('UserService', f'/api/users/{user_uuid}/')
+            user_data = service_client.get('UserService', f'/api/v1/user/{user_uuid}/')
             if not user_data:
                 return Response({'error': '用户不存在'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
