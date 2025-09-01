@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: mysql-pv
+  name: cfmp-order-mysql-pv
 spec:
   capacity:
     storage: 1Gi
@@ -11,14 +11,14 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage
   hostPath:
-    path: /var/lib/mysql-data
+    path: /var/lib/cfmp-order-mysql-data
 
 ---
 # PersistentVolumeClaim for MySQL
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mysql-pvc
+  name: cfmp-order-mysql-pvc
   namespace: cfmp-order
 spec:
   accessModes:
@@ -85,7 +85,7 @@ spec:
       volumes:
       - name: mysql-storage
         persistentVolumeClaim:
-          claimName: mysql-pvc
+          claimName: cfmp-order-mysql-pvc
       - name: mysql-init
         configMap:
           name: mysql-init-config
