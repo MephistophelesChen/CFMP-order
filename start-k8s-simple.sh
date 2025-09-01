@@ -42,6 +42,7 @@ $KUBECTL -n cfmp-order create configmap mysql-init-config --from-file=init.sql=s
 # 删除旧部署（保留数据存储）
 echo "5. 清理旧部署（保留数据存储）..."
 $KUBECTL delete deployment mysql -n cfmp-order --ignore-not-found=true
+$KUBECTL delete service mysql-service -n cfmp-order --ignore-not-found=true
 $KUBECTL delete -f k8s/order-service.yaml -f k8s/payment-service.yaml -f k8s/notification-service.yaml --ignore-not-found=true
 sleep 5
 
