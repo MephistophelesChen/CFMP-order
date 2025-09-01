@@ -24,11 +24,21 @@ class MicroserviceBaseView(APIView):
 
         微服务通信点：从Spring Cloud Gateway添加的HTTP头获取用户身份信息
         """
-        # 从Spring Cloud Gateway添加的HTTP头获取用户UUID
-        user_uuid = self.request.META.get('UUID')
-        if user_uuid:
-            logger.debug(f"从Spring Cloud Gateway获取到用户UUID: {user_uuid}")
-            return user_uuid
+        # 尝试多种可能的Header字段名
+        possible_headers = [
+            'UUID',                    # 原有的字段名
+            'HTTP_UUID',              # HTTP_前缀的UUID
+            'HTTP_X_USER_UUID',       # 标准的X-User-UUID
+            'HTTP_X_USER_ID',         # X-User-ID
+            'HTTP_USER_UUID',         # User-UUID
+            'HTTP_USER_ID',           # User-ID
+        ]
+        
+        for header_name in possible_headers:
+            user_uuid = self.request.META.get(header_name)
+            if user_uuid:
+                logger.debug(f"从Spring Cloud Gateway获取到用户UUID: {user_uuid} (Header: {header_name})")
+                return user_uuid
 
         # 兼容性：仍保留直接从Django用户对象获取的逻辑（开发环境）
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:

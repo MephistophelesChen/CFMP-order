@@ -175,9 +175,19 @@ class NotificationDetailAPIView(GenericAPIView, MicroserviceBaseView):
 
     def get(self, request, notification_id):
         """获取通知详情"""
+        # 临时调试：记录所有相关的请求头信息
+        headers_to_check = [
+            'UUID', 'HTTP_UUID', 'HTTP_X_USER_UUID', 'HTTP_X_USER_ID',
+            'HTTP_USER_UUID', 'HTTP_USER_ID', 'HTTP_AUTHORIZATION'
+        ]
+        header_info = {h: request.META.get(h, 'Not found') for h in headers_to_check}
+        logger.info(f"NotificationDetail Headers: {header_info}")
+
     # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
+        logger.info(f"Retrieved user_uuid: {user_uuid}")
         if not user_uuid:
+            logger.warning(f"用户UUID获取失败 - notification_id: {notification_id}")
             return Response({'error': '用户身份验证失败'}, status=status.HTTP_401_UNAUTHORIZED)
 
         notification = get_object_or_404(
