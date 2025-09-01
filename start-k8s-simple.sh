@@ -39,9 +39,10 @@ $KUBECTL apply -f k8s/namespace.yaml
 echo "4. 创建 MySQL 配置..."
 $KUBECTL -n cfmp-order create configmap mysql-init-config --from-file=init.sql=sql/init.sql --dry-run=client -o yaml | $KUBECTL apply -f -
 
-# 删除旧部署
-echo "5. 清理旧部署..."
-$KUBECTL delete -f k8s/mysql-deployment.yaml -f k8s/order-service.yaml -f k8s/payment-service.yaml -f k8s/notification-service.yaml --ignore-not-found=true
+# 删除旧部署（保留数据存储）
+echo "5. 清理旧部署（保留数据存储）..."
+$KUBECTL delete deployment mysql -n cfmp-order --ignore-not-found=true
+$KUBECTL delete -f k8s/order-service.yaml -f k8s/payment-service.yaml -f k8s/notification-service.yaml --ignore-not-found=true
 sleep 5
 
 # 部署新版本
