@@ -12,6 +12,30 @@ NOTIFICATION_TYPE_CHOICES = (
     (2, 'promotion'),    # 促销通知
 )
 
+def get_notification_type_value(type_input):
+    """将通知类型字符串转换为数据库存储的整数值"""
+    if isinstance(type_input, int):
+        return type_input if type_input in [0, 1, 2] else None
+    
+    if isinstance(type_input, str):
+        type_mapping = {
+            'transaction': 0,
+            'system': 1,
+            'promotion': 2
+        }
+        # 尝试字符串映射
+        if type_input.lower() in type_mapping:
+            return type_mapping[type_input.lower()]
+        
+        # 尝试转换为整数
+        try:
+            type_int = int(type_input)
+            return type_int if type_int in [0, 1, 2] else None
+        except (ValueError, TypeError):
+            return None
+    
+    return None
+
 
 class Notification(models.Model):
     """通知"""

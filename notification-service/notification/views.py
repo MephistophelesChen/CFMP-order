@@ -11,7 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
-from .models import Notification, SecurityPolicy, RiskAssessment
+from .models import Notification, SecurityPolicy, RiskAssessment, get_notification_type_value
 from .serializers import (
     NotificationSerializer, SecurityPolicySerializer,
     RiskAssessmentSerializer, CreateNotificationSerializer
@@ -50,7 +50,14 @@ class NotificationListAPIView(ListAPIView, MicroserviceBaseView):
         # 筛选条件
         notification_type = getattr(self.request, 'query_params', self.request.GET).get('type')
         if notification_type:
-            queryset = queryset.filter(type=notification_type)
+            # 转换字符串类型为整数值
+            type_value = get_notification_type_value(notification_type)
+            if type_value is not None:
+                queryset = queryset.filter(type=type_value)
+            else:
+                logger.warning(f"无效的通知类型参数: {notification_type}")
+                # 无效类型，返回空查询集
+                return Notification.objects.none()
 
         read_status = getattr(self.request, 'query_params', self.request.GET).get('read')
         if read_status == 'true':

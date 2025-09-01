@@ -2,7 +2,7 @@
 通知服务序列化器
 """
 from rest_framework import serializers
-from .models import Notification, SecurityPolicy, RiskAssessment, NOTIFICATION_TYPE_CHOICES
+from .models import Notification, SecurityPolicy, RiskAssessment, NOTIFICATION_TYPE_CHOICES, get_notification_type_value
 import sys
 import os
 
@@ -68,6 +68,13 @@ class CreateNotificationSerializer(serializers.ModelSerializer):
             'user_uuid', 'type', 'title', 'content',
             'related_id', 'related_data'
         ]
+    
+    def validate_type(self, value):
+        """验证并转换通知类型"""
+        converted_type = get_notification_type_value(value)
+        if converted_type is None:
+            raise serializers.ValidationError(f"无效的通知类型: {value}. 支持的类型: transaction, system, promotion 或 0, 1, 2")
+        return converted_type
 
 
 class SecurityPolicySerializer(serializers.ModelSerializer):
