@@ -108,7 +108,7 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
                     'user_uuid': str(user_uuid),
                     'title': '支付成功',
                     'content': f'订单 {order_uuid} 支付成功，金额 ¥{payment.amount}',
-                    'type': 'payment',
+                    'type': 'transaction',
                     'related_id': str(order_uuid),
                     'related_data': {
                         'payment_id': payment.payment_id,
@@ -240,7 +240,7 @@ class PaymentCallbackAPIView(GenericAPIView):
                         'user_uuid': str(payment.user_uuid),
                         'title': '支付成功',
                         'content': f'订单 {payment.order_uuid} 支付成功，金额 ¥{payment.amount}',
-                        'type': 'payment',
+                        'type': 'transaction',
                         'related_id': str(payment.order_uuid),
                         'related_data': {
                             'payment_id': payment.payment_id,
@@ -356,7 +356,7 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
                     'user_uuid': str(user_uuid),
                     'title': '退款成功',
                     'content': f'订单 {payment.order_uuid} 退款成功，金额 ¥{refund_amount}',
-                    'type': 'refund',
+                    'type': 'transaction',
                     'related_id': str(payment.order_uuid),
                     'related_data': {
                         'payment_id': payment.payment_id,

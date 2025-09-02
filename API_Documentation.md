@@ -182,7 +182,7 @@ Query Parameters:
        "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
        "title": "订单创建成功",
        "content": "您的订单 123 已创建成功，等待支付",
-       "type": "order",
+       "type": "transaction",
        "related_id": "123",
        "related_data": {
            "total_amount": "199.98"
@@ -192,10 +192,17 @@ Query Parameters:
    **预期响应:**
    ```json
    {
-       "success": true,
+       "code": "200",
+       "message": "通知创建成功",
        "data": {
            "id": 789,
-           "notification_uuid": "550e8400-e29b-41d4-a716-446655440005"
+           "notification_uuid": "550e8400-e29b-41d4-a716-446655440005",
+           "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
+           "type": 0,
+           "title": "订单创建成功",
+           "content": "您的订单 123 已创建成功，等待支付",
+           "is_read": false,
+           "created_at": "2025-01-01T12:00:00Z"
        }
    }
    ```
@@ -258,7 +265,7 @@ Headers: Content-Type: application/json
     "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
     "title": "订单状态更新",
     "content": "您的订单 123 状态已更新为：已支付",
-    "type": "order",
+    "type": "transaction",
     "related_id": "123",
     "related_data": {
         "status": 1
@@ -268,10 +275,17 @@ Headers: Content-Type: application/json
 **预期响应:**
 ```json
 {
-    "success": true,
+    "code": "200",
+    "message": "通知创建成功",
     "data": {
         "id": 790,
-        "notification_uuid": "550e8400-e29b-41d4-a716-446655440006"
+        "notification_uuid": "550e8400-e29b-41d4-a716-446655440006",
+        "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
+        "type": 0,
+        "title": "订单状态更新",
+        "content": "您的订单 123 状态已更新为：已支付",
+        "is_read": false,
+        "created_at": "2025-01-01T12:05:00Z"
     }
 }
 ```
@@ -303,7 +317,7 @@ Headers: Content-Type: application/json
     "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
     "title": "订单取消通知",
     "content": "您的订单 123 已成功取消",
-    "type": "order",
+    "type": "transaction",
     "related_id": "123",
     "related_data": {
         "status": 3,
@@ -314,10 +328,17 @@ Headers: Content-Type: application/json
 **预期响应:**
 ```json
 {
-    "success": true,
+    "code": "200",
+    "message": "通知创建成功",
     "data": {
         "id": 791,
-        "notification_uuid": "550e8400-e29b-41d4-a716-446655440007"
+        "notification_uuid": "550e8400-e29b-41d4-a716-446655440007",
+        "user_uuid": "550e8400-e29b-41d4-a716-446655440002",
+        "type": 0,
+        "title": "订单状态更新",
+        "content": "您的订单 456 状态已更新为：已取消",
+        "is_read": false,
+        "created_at": "2025-01-01T12:15:00Z"
     }
 }
 ```
@@ -342,7 +363,7 @@ Headers: Content-Type: application/json
     "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
     "title": "订单完成通知",
     "content": "您的订单 123 已完成",
-    "type": "order",
+    "type": "transaction",
     "related_id": "123",
     "related_data": {
         "status": 2
@@ -352,10 +373,17 @@ Headers: Content-Type: application/json
 **预期响应:**
 ```json
 {
-    "success": true,
+    "code": "200",
+    "message": "通知创建成功",
     "data": {
         "id": 792,
-        "notification_uuid": "550e8400-e29b-41d4-a716-446655440008"
+        "notification_uuid": "550e8400-e29b-41d4-a716-446655440008",
+        "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
+        "type": 0,
+        "title": "订单完成通知",
+        "content": "您的订单 123 已完成",
+        "is_read": false,
+        "created_at": "2025-01-01T12:20:00Z"
     }
 }
 ```
@@ -427,7 +455,7 @@ Headers: Content-Type: application/json
     "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
     "title": "订单状态更新",
     "content": "您的订单 123 状态已更新",
-    "type": "order",
+    "type": "transaction",
     "related_id": "123",
     "related_data": {
         "status": 1
@@ -437,10 +465,17 @@ Headers: Content-Type: application/json
 **预期响应:**
 ```json
 {
-    "success": true,
+    "code": "200",
+    "message": "通知创建成功",
     "data": {
         "id": 793,
-        "notification_uuid": "550e8400-e29b-41d4-a716-446655440009"
+        "notification_uuid": "550e8400-e29b-41d4-a716-446655440009",
+        "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
+        "type": 0,
+        "title": "订单状态更新",
+        "content": "您的订单 123 状态已更新",
+        "is_read": false,
+        "created_at": "2025-01-01T12:25:00Z"
     }
 }
 ```
@@ -752,9 +787,11 @@ PaymentService → NotificationService (支付通知)
 - 4: cancelled (已取消)
 
 ## 通知类型 (Notification Type)
-- 0: transaction (交易通知)
-- 1: system (系统通知)
-- 2: promotion (促销通知)
+- 0: transaction (交易通知) - 用于订单、支付相关通知
+- 1: system (系统通知) - 用于系统维护、升级通知
+- 2: promotion (促销通知) - 用于营销活动通知
+
+**注意:** 代码中使用 `"transaction"` 来发送订单相关通知，而不是 `"order"`
 
 ---
 
@@ -896,10 +933,16 @@ Content-Type: application/json
 **成功响应:**
 ```json
 {
-    "success": true,
+    "code": "200",
+    "message": "通知创建成功",
     "data": {
         "id": 789,
         "notification_uuid": "550e8400-e29b-41d4-a716-446655440005",
+        "user_uuid": "550e8400-e29b-41d4-a716-446655440001",
+        "type": 0,
+        "title": "订单状态更新",
+        "content": "您的订单 123 状态已更新为：已支付",
+        "is_read": false,
         "created_at": "2025-01-01T12:00:00Z"
     }
 }
@@ -908,8 +951,9 @@ Content-Type: application/json
 **失败响应:**
 ```json
 {
-    "success": false,
-    "error": "Invalid user_uuid or required fields missing"
+    "code": "400",
+    "message": "Invalid user_uuid or required fields missing",
+    "data": null
 }
 ```
 
@@ -960,8 +1004,9 @@ GET /api/orders/internal/550e8400-e29b-41d4-a716-446655440000/
 **失败响应:**
 ```json
 {
-    "success": false,
-    "error": "订单不存在"
+    "code": "404",
+    "message": "订单不存在",
+    "data": null
 }
 ```
 
@@ -990,7 +1035,8 @@ Content-Type: application/json
 **成功响应:**
 ```json
 {
-    "success": true,
+    "code": "200",
+    "message": "订单状态更新成功",
     "data": {
         "order_id": 123,
         "order_uuid": "550e8400-e29b-41d4-a716-446655440000",
@@ -1004,8 +1050,9 @@ Content-Type: application/json
 **失败响应:**
 ```json
 {
-    "success": false,
-    "error": "订单不存在或状态不允许更新"
+    "code": "400",
+    "message": "订单不存在或状态不允许更新",
+    "data": null
 }
 ```
 

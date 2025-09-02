@@ -175,7 +175,7 @@ class OrderListCreateAPIView(ListCreateAPIView, MicroserviceBaseView):
                 'user_uuid': str(user_uuid),
                 'title': '订单创建成功',
                 'content': f'您的订单 {order.order_id} 已创建成功，等待支付',
-                'type': 'order',
+                'type': 'transaction',
                 'related_id': str(order.order_id),
                 'related_data': {
                     'total_amount': str(order.total_amount)
@@ -237,7 +237,7 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView, MicroserviceBaseView):
                     'user_uuid': str(updated_order.buyer_uuid),
                     'title': '订单状态更新',
                     'content': f'您的订单 {updated_order.order_id} 状态已更新为：{status_messages.get(updated_order.status, "未知")}',
-                    'type': 'order',
+                    'type': 'transaction',
                     'related_id': str(updated_order.order_id),
                     'related_data': {
                         'status': updated_order.status
@@ -300,7 +300,7 @@ class OrderCancelAPIView(GenericAPIView, MicroserviceBaseView):
                 'user_uuid': str(user_uuid),
                 'title': '订单已取消',
                 'content': f'您的订单 {order.order_id} 已成功取消',
-                'type': 'order',
+                'type': 'transaction',
                 'related_id': str(order.order_id),
                 'related_data': {
                     'action': 'cancelled'
@@ -397,7 +397,7 @@ class OrderCompleteAPIView(GenericAPIView, MicroserviceBaseView):
                 'user_uuid': str(user_uuid),
                 'title': '订单已完成',
                 'content': f'您的订单 {order.order_id} 已完成',
-                'type': 'order',
+                'type': 'transaction',
                 'related_id': str(order.order_id),
                 'related_data': {
                     'action': 'completed'
@@ -501,7 +501,7 @@ class OrderInternalAPIView(GenericAPIView):
                         'user_uuid': str(order.buyer_uuid),
                         'title': '订单状态更新',
                         'content': f'您的订单 {order.order_id} 状态已更新',
-                        'type': 'order',
+                        'type': 'transaction',
                         'related_id': str(order.order_id),
                         'related_data': {
                             'status': order.status
