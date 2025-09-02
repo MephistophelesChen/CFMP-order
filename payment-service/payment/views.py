@@ -417,4 +417,5 @@ class PaymentStatsAPIView(GenericAPIView, MicroserviceBaseView):
         stats['recent_payments'] = recent_payments.count()
         stats['recent_amount'] = recent_payments.aggregate(Sum('amount'))['amount__sum'] or 0
 
+
         return Response(stats)
