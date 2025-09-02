@@ -56,6 +56,11 @@ echo "7. 等待MySQL完全启动..."
 $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql-service --timeout=300s
 echo "  MySQL已就绪，开始部署应用服务..."
 
+
+echo "10. 等待应用服务启动（50秒）..."
+sleep 50
+
+
 # 部署应用服务
 echo "8. 部署应用服务..."
 $KUBECTL apply -f k8s/order-service.yaml
@@ -69,8 +74,7 @@ $KUBECTL apply -f k8s/pdb.yaml
 $KUBECTL apply -f k8s/circuit-breaker.yaml
 
 # 等待服务部署完成
-echo "10. 等待应用服务启动（30秒）..."
-sleep 30
+
 
 echo "  检查服务状态..."
 $KUBECTL -n cfmp-order get pods
@@ -83,9 +87,9 @@ echo "11. 生成并执行数据库迁移..."
 
 # 首先生成迁移文件 (makemigrations)
 echo "  生成迁移文件..."
-# $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py makemigrations --noinput
-# $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py makemigrations --noinput
-# $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py makemigrations --noinput
+$KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py makemigrations --noinput
+$KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py makemigrations --noinput
+$KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py makemigrations --noinput
 
 # 然后执行迁移 (migrate)
 echo "  执行数据库迁移..."

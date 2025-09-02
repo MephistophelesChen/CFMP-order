@@ -164,29 +164,6 @@ class PaymentListAPIView(ListAPIView, MicroserviceBaseView):
         })
 
 
-class PaymentDetailAPIView(GenericAPIView, MicroserviceBaseView):
-    """支付详情"""
-    # permission_classes = [IsAuthenticated]
-
-    def get(self, request, payment_id):
-    # 从Spring Cloud Gateway获取用户UUID
-        user_uuid = self.get_user_uuid_from_request()
-        if not user_uuid:
-            return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
-
-        payment = get_object_or_404(
-            Payment,
-            payment_id=payment_id,
-            user_uuid=user_uuid
-        )
-
-        serializer = PaymentSerializer(payment)
-        return Response({
-            'code': '200',
-            'message': 'success',
-            'data': serializer.data
-        })
-
 
 class PaymentCallbackAPIView(GenericAPIView):
     """支付回调处理 - 第三方支付平台回调"""
