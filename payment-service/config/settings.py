@@ -10,19 +10,50 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 添加公共模块路径
 # 在容器中，common模块与payment-service在同一级目录
+# 在本地开发环境中，common在父目录
 COMMON_DIR = BASE_DIR / 'common'
+if not COMMON_DIR.exists():
+    # 本地开发环境：common在父目录
+    COMMON_DIR = BASE_DIR.parent / 'common'
+
+if not COMMON_DIR.exists():
+    raise FileNotFoundError(
+        f"无法找到 common 配置目录。已尝试路径:\n"
+        f"1. {BASE_DIR / 'common'} (容器环境)\n"
+        f"2. {BASE_DIR.parent / 'common'} (本地开发环境)\n"
+        f"请确保 common 目录存在于正确位置。"
+    )
+
 sys.path.insert(0, str(COMMON_DIR))
 
 # 导入公共配置（避免与当前config包冲突）
 import importlib.util
-spec = importlib.util.spec_from_file_location("common_config", COMMON_DIR / "config.py")
-if spec:
+config_file = COMMON_DIR / "config.py"
+if not config_file.exists():
+    raise FileNotFoundError(
+        f"无法找到公共配置文件: {config_file}\n"
+        f"请确保 common/config.py 文件存在。"
+    )
+
+spec = importlib.util.spec_from_file_location("common_config", config_file)
+if not spec or not spec.loader:
+    raise ImportError(
+        f"无法加载公共配置模块: {config_file}\n"
+        f"请检查 config.py 文件是否有语法错误。"
+    )
+
+try:
     common_config = importlib.util.module_from_spec(spec)
-    if spec.loader and common_config:
-        spec.loader.exec_module(common_config)
-        DATABASE_CONFIG = common_config.DATABASE_CONFIG
-        NACOS_CONFIG = common_config.NACOS_CONFIG
-        SERVICES = common_config.SERVICES
+    spec.loader.exec_module(common_config)
+    DATABASE_CONFIG = common_config.DATABASE_CONFIG
+    NACOS_CONFIG = common_config.NACOS_CONFIG
+    SERVICES = common_config.SERVICES
+except Exception as e:
+    raise ImportError(
+        f"执行公共配置模块时出错: {config_file}\n"
+        f"错误详情: {e}\n"
+        f"请检查 config.py 文件的语法和依赖。"
+    )
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-payment-service-key-change-in-production')
