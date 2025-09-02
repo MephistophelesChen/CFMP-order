@@ -45,7 +45,7 @@ spec:
         - name: NACOS_PASSWORD
           value: "nacos"
         - name: NOTIFICATION_DB_HOST
-          value: "mysql-service"
+          value: "101.200.231.225"
         - name: NOTIFICATION_DB_NAME
           value: "cfmp_notification"
         - name: NOTIFICATION_DB_USER
@@ -53,7 +53,7 @@ spec:
         - name: NOTIFICATION_DB_PASSWORD
           value: "root123"
         - name: NOTIFICATION_DB_PORT
-          value: "3306"
+          value: "30036"
         # 通知服务配置
         - name: ENABLE_CIRCUIT_BREAKER
           value: "true"

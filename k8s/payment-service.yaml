@@ -57,7 +57,7 @@ spec:
         - name: NACOS_PASSWORD
           value: "nacos"
         - name: PAYMENT_DB_HOST
-          value: "mysql-service"
+          value: "101.200.231.225"
         - name: PAYMENT_DB_NAME
           value: "cfmp_payment"
         - name: PAYMENT_DB_USER
@@ -65,7 +65,7 @@ spec:
         - name: PAYMENT_DB_PASSWORD
           value: "root123"
         - name: PAYMENT_DB_PORT
-          value: "3306"
+          value: "30036"
         # 支付服务特殊配置
         - name: ENABLE_CIRCUIT_BREAKER
           value: "true"
