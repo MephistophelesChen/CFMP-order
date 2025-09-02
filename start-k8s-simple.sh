@@ -83,23 +83,23 @@ $KUBECTL -n cfmp-order get pods
 # 运行数据库迁移
 echo "11. 生成并执行数据库迁移..."
 
-# 首先生成迁移文件 (makemigrations)
-echo "  生成迁移文件..."
-$KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py makemigrations --noinput
-$KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py makemigrations --noinput
-$KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py makemigrations --noinput
+# # 首先生成迁移文件 (makemigrations)
+# echo "  生成迁移文件..."
+# $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py makemigrations --noinput
+# $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py makemigrations --noinput
+# $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py makemigrations --noinput
 
-# 然后执行迁移 (migrate)
-echo "  执行数据库迁移..."
-$KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py migrate --noinput
-$KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py migrate --noinput
-$KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py migrate --noinput
+# # 然后执行迁移 (migrate)
+# echo "  执行数据库迁移..."
+# $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py migrate --noinput
+# $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py migrate --noinput
+# $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py migrate --noinput
 
-# 检查迁移状态
-echo "  检查迁移状态..."
-$KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py showmigrations
-$KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py showmigrations
-$KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py showmigrations
+# # 检查迁移状态
+# echo "  检查迁移状态..."
+# $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py showmigrations
+# $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py showmigrations
+# $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py showmigrations
 
 # 显示部署状态
 echo "12. 部署状态:"
