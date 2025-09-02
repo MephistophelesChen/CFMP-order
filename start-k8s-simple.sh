@@ -26,10 +26,10 @@ for service in order-service payment-service notification-service; do
 done
 
 # 导入MySQL镜像
-# echo "  导入 mysql:8.0..."
-# docker save mysql:8.0 -o mysql.tar
-# k3s ctr images import mysql.tar
-# rm -f mysql.tar
+echo "  导入 mysql:8.0..."
+docker save mysql:8.0 -o mysql.tar
+k3s ctr images import mysql.tar
+rm -f mysql.tar
 
 # 部署到k8s
 echo "3. 部署到 Kubernetes..."
@@ -49,13 +49,13 @@ $KUBECTL delete -f k8s/order-service.yaml -f k8s/payment-service.yaml -f k8s/not
 sleep 5
 
 # 部署新版本
-# echo "6. 首先部署MySQL..."
-# $KUBECTL apply -f k8s/mysql-deployment.yaml
+echo "6. 首先部署MySQL..."
+$KUBECTL apply -f k8s/mysql-deployment.yaml
 
-# # 等待MySQL完全启动
-# echo "7. 等待MySQL完全启动..."
-# $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql-service --timeout=300s
-# echo "  MySQL已就绪，开始部署应用服务..."
+# 等待MySQL完全启动
+echo "7. 等待MySQL完全启动..."
+$KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql-service --timeout=300s
+echo "  MySQL已就绪，开始部署应用服务..."
 
 
 

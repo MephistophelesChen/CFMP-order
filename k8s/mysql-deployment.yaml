@@ -66,22 +66,22 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
-        readinessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -c
-            - "mysqladmin ping -u root -p$MYSQL_ROOT_PASSWORD"
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        livenessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -c
-            - "mysqladmin ping -u root -p$MYSQL_ROOT_PASSWORD"
-          initialDelaySeconds: 60
-          periodSeconds: 30
+        # readinessProbe:
+        #   exec:
+        #     command:
+        #     - /bin/sh
+        #     - -c
+        #     - "mysqladmin ping -u root -p$MYSQL_ROOT_PASSWORD"
+        #   initialDelaySeconds: 30
+        #   periodSeconds: 10
+        # livenessProbe:
+        #   exec:
+        #     command:
+        #     - /bin/sh
+        #     - -c
+        #     - "mysqladmin ping -u root -p$MYSQL_ROOT_PASSWORD"
+        #   initialDelaySeconds: 60
+        #   periodSeconds: 30
       volumes:
       - name: mysql-storage
         persistentVolumeClaim:
