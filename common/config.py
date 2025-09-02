@@ -65,6 +65,16 @@ DATABASE_CONFIG = {
         'PASSWORD': os.getenv('ORDER_DB_PASSWORD', 'root123'),
         'HOST': os.getenv('ORDER_DB_HOST', 'mysql-service'),  # K8s环境默认使用mysql-service
         'PORT': os.getenv('ORDER_DB_PORT', '3306'),
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {
+            'init_command': "SET SESSION binlog_format = 'ROW'",
+            'connect_timeout': 30,  # 连接超时时间（秒）
+            'read_timeout': 30,  # 读取超时时间（秒）
+            'write_timeout': 30,  # 写入超时时间（秒）
+            # MySQL连接器特定的重试参数
+            'autocommit': True,
+            'sql_mode': 'STRICT_TRANS_TABLES',
+        },
     },
     'PAYMENT_DB': {
         'ENGINE': 'django.db.backends.mysql',
@@ -73,6 +83,16 @@ DATABASE_CONFIG = {
         'PASSWORD': os.getenv('PAYMENT_DB_PASSWORD', 'root123'),
         'HOST': os.getenv('PAYMENT_DB_HOST', 'mysql-service'),  # K8s环境默认使用mysql-service
         'PORT': os.getenv('PAYMENT_DB_PORT', '3306'),
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {
+            'init_command': "SET SESSION binlog_format = 'ROW'",
+            'connect_timeout': 30,  # 连接超时时间（秒）
+            'read_timeout': 30,  # 读取超时时间（秒）
+            'write_timeout': 30,  # 写入超时时间（秒）
+            # MySQL连接器特定的重试参数
+            'autocommit': True,
+            'sql_mode': 'STRICT_TRANS_TABLES',
+        },
     },
     'NOTIFICATION_DB': {
         'ENGINE': 'django.db.backends.mysql',
@@ -81,6 +101,16 @@ DATABASE_CONFIG = {
         'PASSWORD': os.getenv('NOTIFICATION_DB_PASSWORD', 'root123'),
         'HOST': os.getenv('NOTIFICATION_DB_HOST', 'mysql-service'),  # K8s环境默认使用mysql-service
         'PORT': os.getenv('NOTIFICATION_DB_PORT', '3306'),
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {
+            'init_command': "SET SESSION binlog_format = 'ROW'",
+            'connect_timeout': 30,  # 连接超时时间（秒）
+            'read_timeout': 30,  # 读取超时时间（秒）
+            'write_timeout': 30,  # 写入超时时间（秒）
+            # MySQL连接器特定的重试参数
+            'autocommit': True,
+            'sql_mode': 'STRICT_TRANS_TABLES',
+        },
     }
 }
 
