@@ -83,9 +83,9 @@ echo "11. 生成并执行数据库迁移..."
 
 # 首先生成迁移文件 (makemigrations)
 echo "  生成迁移文件..."
-$KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py makemigrations --noinput
-$KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py makemigrations --noinput
-$KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py makemigrations --noinput
+# $KUBECTL -n cfmp-order exec deploy/order-service -- python manage.py makemigrations --noinput
+# $KUBECTL -n cfmp-order exec deploy/payment-service -- python manage.py makemigrations --noinput
+# $KUBECTL -n cfmp-order exec deploy/notification-service -- python manage.py makemigrations --noinput
 
 # 然后执行迁移 (migrate)
 echo "  执行数据库迁移..."
