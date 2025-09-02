@@ -45,14 +45,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderListSerializer(serializers.ModelSerializer):
     """订单列表序列化器 - 兼容原有API格式"""
     buyer_id = serializers.SerializerMethodField(read_only=True)  # 兼容原有API
+    seller_id = serializers.SerializerMethodField(read_only=True)  # 卖家ID
+    buyer_uuid = serializers.UUIDField(read_only=True)  # 买家UUID
+    seller_uuid = serializers.UUIDField(read_only=True)  # 卖家UUID
+    order_uuid = serializers.UUIDField(read_only=True)  # 订单UUID
     products = OrderItemSerializer(source='order_items', many=True, read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            'order_id', 'status', 'created_at', 'payment_method', 'buyer_id',
-            'cancel_reason', 'payment_time', 'remark', 'shipping_address',
-            'shipping_name', 'shipping_phone', 'shipping_postal_code',
+            'order_id', 'order_uuid', 'status', 'created_at', 'payment_method', 'buyer_id', 'seller_id',
+            'buyer_uuid', 'seller_uuid', 'cancel_reason', 'payment_time', 'remark', 
+            'shipping_address', 'shipping_name', 'shipping_phone', 'shipping_postal_code',
             'total_amount', 'updated_at', 'products'
         ]
 
@@ -69,6 +73,23 @@ class OrderListSerializer(serializers.ModelSerializer):
             pass
         # 回退：返回UUID字符串
         return str(obj.buyer_uuid)
+
+    def get_seller_id(self, obj):
+        """获取卖家ID - 兼容原有API
+
+        微服务通信点：需要通过seller_uuid调用UserService获取用户ID
+        """
+        if not obj.seller_uuid:
+            return None
+            
+        try:
+            user_data = service_client.get('UserService', f'/api/v1/user/{obj.seller_uuid}/')
+            if user_data and isinstance(user_data, dict):
+                return user_data.get('user_id') or user_data.get('id') or str(obj.seller_uuid)
+        except Exception:
+            pass
+        # 回退：返回UUID字符串
+        return str(obj.seller_uuid)
 
     def get_buyer_info(self, obj):
         """通过用户服务获取用户信息"""
@@ -91,6 +112,10 @@ class OrderListSerializer(serializers.ModelSerializer):
 class OrderDetailSerializer(serializers.ModelSerializer):
     """订单详情序列化器 - 兼容原有API格式"""
     buyer_id = serializers.SerializerMethodField(read_only=True)  # 兼容原有API
+    seller_id = serializers.SerializerMethodField(read_only=True)  # 卖家ID
+    buyer_uuid = serializers.UUIDField(read_only=True)  # 买家UUID
+    seller_uuid = serializers.UUIDField(read_only=True)  # 卖家UUID
+    order_uuid = serializers.UUIDField(read_only=True)  # 订单UUID
     products = OrderItemSerializer(source='order_items', many=True, read_only=True)
 
     # 配送地址解密字段
@@ -101,9 +126,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'order_id', 'status', 'created_at', 'payment_method', 'buyer_id',
-            'cancel_reason', 'payment_time', 'remark', 'shipping_address',
-            'shipping_name', 'shipping_phone', 'shipping_postal_code',
+            'order_id', 'order_uuid', 'status', 'created_at', 'payment_method', 'buyer_id', 'seller_id',
+            'buyer_uuid', 'seller_uuid', 'cancel_reason', 'payment_time', 'remark', 
+            'shipping_address', 'shipping_name', 'shipping_phone', 'shipping_postal_code',
             'total_amount', 'updated_at', 'products'
         ]
 
@@ -116,6 +141,19 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         except Exception:
             pass
         return str(obj.buyer_uuid)
+
+    def get_seller_id(self, obj):
+        """获取卖家ID - 兼容原有API"""
+        if not obj.seller_uuid:
+            return None
+            
+        try:
+            user_data = service_client.get('UserService', f'/api/v1/user/{obj.seller_uuid}/')
+            if user_data and isinstance(user_data, dict):
+                return user_data.get('user_id') or user_data.get('id') or str(obj.seller_uuid)
+        except Exception:
+            pass
+        return str(obj.seller_uuid)
 
     def get_shipping_name(self, obj):
         """解密收货人姓名"""
@@ -136,6 +174,10 @@ class CreateOrderSerializer(serializers.Serializer):
         child=serializers.DictField(),
         write_only=True,
         help_text="商品列表，格式：[{'product_uuid': 'xxx', 'quantity': 1, 'price': 100.00}]"
+    )
+    seller_id = serializers.UUIDField(
+        write_only=True,
+        help_text="卖家UUID"
     )
     payment_method = serializers.ChoiceField(
         choices=PAYMENT_METHOD_CHOICES,
@@ -167,6 +209,7 @@ class CreateOrderSerializer(serializers.Serializer):
     def create(self, validated_data):
         """创建订单"""
         products_data = validated_data.pop('products')
+        seller_id = validated_data.pop('seller_id')  # 获取传入的seller_id (实际是seller_uuid)
         buyer_uuid = self.context['buyer_uuid']
 
     # TODO(订单冲突检查 - 暂缓实现)：
@@ -185,6 +228,7 @@ class CreateOrderSerializer(serializers.Serializer):
         # 创建订单
         order = Order.objects.create(
             buyer_uuid=buyer_uuid,
+            seller_uuid=seller_id,  # 使用传入的卖家UUID
             total_amount=total_amount,
             **validated_data
         )

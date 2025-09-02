@@ -7,6 +7,7 @@ from . import views
 urlpatterns = [
     # 订单管理接口 - 完全兼容原有API路径 /api/orders/
     path('', views.OrderListCreateAPIView.as_view(), name='order-list-create'),  # GET/POST /api/orders/
+    path('sold/', views.OrderSoldListAPIView.as_view(), name='order-sold-list'),  # GET /api/orders/sold/
     path('<str:order_id>/', views.OrderDetailAPIView.as_view(), name='order-detail'),  # GET/PUT /api/orders/{order_id}/
     path('<str:order_id>/cancel/', views.OrderCancelAPIView.as_view(), name='order-cancel'),  # PUT /api/orders/{order_id}/cancel/
     path('<str:order_id>/complete/', views.OrderCompleteAPIView.as_view(), name='order-complete'),  # PUT /api/orders/{order_id}/complete/

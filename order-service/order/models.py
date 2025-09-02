@@ -28,7 +28,7 @@ class Order(models.Model):
 
     # 解耦改造：使用UUID替代外键
     buyer_uuid = models.UUIDField()  # 用户UUID，通过API调用用户服务获取用户信息
-
+    seller_uuid = models.UUIDField(null=True, blank=True)  # 卖家UUID，通过API调用用户服务获取用户信息
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.SmallIntegerField(choices=ORDER_STATUS_CHOICES, default=0)
     created_at = models.DateTimeField(auto_now_add=True)

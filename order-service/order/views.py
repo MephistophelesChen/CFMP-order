@@ -338,7 +338,7 @@ class OrderPayAPIView(GenericAPIView, MicroserviceBaseView):
         # 调用PaymentService内部API创建并处理支付
         try:
             payment_result = service_client.post('PaymentService', '/api/payment/create/', {
-                'order_uuid': order.order_id,
+                'order_uuid': str(order.order_uuid),
                 'payment_method': payment_method,
                 'amount': str(order.total_amount),
                 'payment_subject': f'订单支付 - {order.order_id}'
@@ -464,10 +464,10 @@ class OrderInternalAPIView(GenericAPIView):
     """内部订单API - 供其他微服务调用"""
     # permission_classes = [AllowAny]  # 内部API不需要用户认证
 
-    def get(self, request, order_id):
+    def get(self, request, order_uuid):
         """获取订单信息 - 供PaymentService等调用"""
         try:
-            order = Order.objects.get(order_id=order_id)
+            order = Order.objects.get(order_uuid=order_uuid)
             serializer = OrderDetailSerializer(order)
             return Response({
                 'success': True,
@@ -479,10 +479,10 @@ class OrderInternalAPIView(GenericAPIView):
                 'error': '订单不存在'
             }, status=status.HTTP_404_NOT_FOUND)
 
-    def patch(self, request, order_id):
+    def patch(self, request, order_uuid):
         """更新订单状态 - 供PaymentService调用"""
         try:
-            order = Order.objects.get(order_id=order_id)
+            order = Order.objects.get(order_uuid=order_uuid)
 
             # 只允许更新特定字段
             allowed_fields = ['status', 'payment_time']
@@ -537,6 +537,42 @@ class OrderListAPIView(ListAPIView, MicroserviceBaseView):
 
     def list(self, request, *args, **kwargs):
         """返回订单列表 - 兼容原有API响应格式"""
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({
+                'code': '200',
+                'message': 'success',
+                'data': serializer.data
+            })
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'code': '200',
+            'message': 'success',
+            'data': serializer.data
+        })
+
+
+class OrderSoldListAPIView(ListAPIView, MicroserviceBaseView):
+    """返回所有卖家是当前用户的订单"""
+    serializer_class = OrderListSerializer
+    pagination_class = StandardPagination
+    # permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """获取当前用户作为卖家的所有订单"""
+        user_uuid = self.get_user_uuid_from_request()
+        if not user_uuid:
+            return Order.objects.none()
+
+        # 直接通过seller_uuid查询订单
+        return Order.objects.filter(seller_uuid=user_uuid).prefetch_related('order_items').order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        """返回卖家订单列表 - 兼容原有API响应格式"""
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
 
