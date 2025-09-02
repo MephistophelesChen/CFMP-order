@@ -8,18 +8,19 @@ import os
 
 # 添加公共模块路径（用于从各微服务导入 common）
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-COMMON_DIR = os.path.join(os.path.dirname(BASE_DIR), 'common')
-if COMMON_DIR not in sys.path:
-    sys.path.insert(0, COMMON_DIR)
+# 正确的做法：添加包含 common 目录的父目录
+PARENT_DIR = os.path.dirname(BASE_DIR)
 
-try:
-    from common.service_client import service_client
-except Exception:
-    class MockServiceClient:
-        def get(self, service_name, path):
-            return None
+if not os.path.exists(os.path.join(PARENT_DIR, 'common')):
+    raise FileNotFoundError(
+        f"无法找到 common 配置目录。已尝试路径: {os.path.join(PARENT_DIR, 'common')}\n"
+        f"请确保 common 目录存在于正确位置。"
+    )
 
-    service_client = MockServiceClient()
+if PARENT_DIR not in sys.path:
+    sys.path.insert(0, PARENT_DIR)
+
+from common.service_client import service_client
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -68,7 +69,7 @@ class CreateNotificationSerializer(serializers.ModelSerializer):
             'user_uuid', 'type', 'title', 'content',
             'related_id', 'related_data'
         ]
-    
+
     def validate_type(self, value):
         """验证并转换通知类型"""
         converted_type = get_notification_type_value(value)

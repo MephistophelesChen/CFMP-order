@@ -69,8 +69,8 @@ $KUBECTL apply -f k8s/pdb.yaml
 $KUBECTL apply -f k8s/circuit-breaker.yaml
 
 # 等待服务部署完成
-echo "10. 等待应用服务启动（30秒）..."
-sleep 30
+echo "10. 等待应用服务启动（60秒）..."
+sleep 60
 
 echo "  检查服务状态..."
 $KUBECTL -n cfmp-order get pods

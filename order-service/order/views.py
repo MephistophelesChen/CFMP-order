@@ -18,6 +18,24 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Count, Sum, Q
 from .models import Order, OrderItem
+
+# 添加公共模块路径 - 必须在导入 serializers 之前
+import sys
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 正确的做法：添加包含 common 目录的父目录
+PARENT_DIR = os.path.dirname(BASE_DIR)
+
+if not os.path.exists(os.path.join(PARENT_DIR, 'common')):
+    raise FileNotFoundError(
+        f"无法找到 common 配置目录。已尝试路径: {os.path.join(PARENT_DIR, 'common')}\n"
+        f"请确保 common 目录存在于正确位置。"
+    )
+
+if PARENT_DIR not in sys.path:
+    sys.path.insert(0, PARENT_DIR)
+
+# 现在可以安全地导入依赖 common 模块的 serializers
 from .serializers import (
     OrderListSerializer, OrderDetailSerializer, CreateOrderSerializer
 )
