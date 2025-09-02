@@ -43,4 +43,4 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 8002
 
 # 启动命令
-CMD ["python manage.py migrate && python manage.py runserver 0.0.0.0:8002"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8002"]

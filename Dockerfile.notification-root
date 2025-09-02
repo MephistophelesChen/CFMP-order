@@ -44,4 +44,4 @@ EXPOSE 8003
 
 
 # 运行应用，包含数据迁移
-CMD ["python manage.py migrate && python manage.py runserver 0.0.0.0:8003"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8003"]
