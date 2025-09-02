@@ -8,12 +8,20 @@ import os
 
 # 添加公共模块路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# 正确的做法：添加包含 common 目录的父目录
-PARENT_DIR = os.path.dirname(BASE_DIR)
+
+# 检测环境：容器环境 vs 本地开发环境
+if BASE_DIR.startswith('/app'):
+    # Docker 容器环境
+    PARENT_DIR = BASE_DIR
+else:
+    # 本地开发环境
+    PARENT_DIR = os.path.dirname(BASE_DIR)
 
 if not os.path.exists(os.path.join(PARENT_DIR, 'common')):
     raise FileNotFoundError(
         f"无法找到 common 配置目录。已尝试路径: {os.path.join(PARENT_DIR, 'common')}\n"
+        f"当前 BASE_DIR: {BASE_DIR}\n"
+        f"当前 PARENT_DIR: {PARENT_DIR}\n"
         f"请确保 common 目录存在于正确位置。"
     )
 

@@ -12,9 +12,9 @@ fi
 
 # 构建镜像（带超时保护）
 echo "1. 构建服务镜像..."
-timeout 300 docker build -t order-service -f Dockerfile.order-root . || { echo "订单服务构建失败"; exit 1; }
-timeout 300 docker build -t payment-service -f Dockerfile.payment-root . || { echo "支付服务构建失败"; exit 1; }
-timeout 300 docker build -t notification-service -f Dockerfile.notification-root . || { echo "通知服务构建失败"; exit 1; }
+timeout 300 docker build -t order-service:latest -f Dockerfile.order-root . || { echo "订单服务构建失败"; exit 1; }
+timeout 300 docker build -t payment-service:latest -f Dockerfile.payment-root . || { echo "支付服务构建失败"; exit 1; }
+timeout 300 docker build -t notification-service:latest -f Dockerfile.notification-root . || { echo "通知服务构建失败"; exit 1; }
 
 # 导入镜像到k3s
 echo "2. 导入镜像到 K3s..."
