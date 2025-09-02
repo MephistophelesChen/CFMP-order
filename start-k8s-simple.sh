@@ -56,6 +56,8 @@ echo "7. 等待MySQL完全启动..."
 $KUBECTL -n cfmp-order wait --for=condition=ready pod -l app=mysql-service --timeout=300s
 echo "  MySQL已就绪，开始部署应用服务..."
 
+echo "10. 等待应用服务启动（60秒）..."
+sleep 60
 # 部署应用服务
 echo "8. 部署应用服务..."
 $KUBECTL apply -f k8s/order-service.yaml
@@ -69,8 +71,7 @@ $KUBECTL apply -f k8s/pdb.yaml
 $KUBECTL apply -f k8s/circuit-breaker.yaml
 
 # 等待服务部署完成
-echo "10. 等待应用服务启动（60秒）..."
-sleep 60
+
 
 echo "  检查服务状态..."
 $KUBECTL -n cfmp-order get pods
