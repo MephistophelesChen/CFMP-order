@@ -109,17 +109,14 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_shipping_name(self, obj):
         """解密收货人姓名"""
-        # TODO: 实现解密逻辑
         return obj.shipping_name
 
     def get_shipping_phone(self, obj):
         """解密收货人电话"""
-        # TODO: 实现解密逻辑
         return obj.shipping_phone
 
     def get_shipping_address(self, obj):
         """解密收货地址"""
-        # TODO: 实现解密逻辑
         return obj.shipping_address
 
 
