@@ -195,7 +195,7 @@ class PaymentCallbackAPIView(GenericAPIView):
     """支付回调处理 - 第三方支付平台回调"""
     # permission_classes = [AllowAny]  # 支付回调不需要用户认证
 
-    def post(self, request):
+    def post(self, request, payment_method):
         """处理支付回调"""
         # 为了保持API兼容性，我们支持两种字段名
         payment_id = request.data.get('payment_id')
