@@ -102,32 +102,6 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
         payment_result = self._process_payment(payment)
 
         if payment_result.get('success'):
-            # 支付成功：通知订单服务更新状态
-            try:
-                order_update = {
-                    'status': 1,
-                    'payment_time': timezone.now().isoformat()
-                }
-                service_client.patch('OrderService', f'/api/orders/internal/orders/{order_uuid}/', order_update)
-            except Exception as e:
-                logger.warning(f"更新订单状态失败: {e}")
-
-            # 发送支付成功通知
-            try:
-                service_client.post('NotificationService', '/api/internal/notifications/create/', {
-                    'user_uuid': str(user_uuid),
-                    'title': '支付成功',
-                    'content': f'订单 {order_uuid} 支付成功，金额 ¥{payment.amount}',
-                    'type': 'transaction',
-                    'related_id': str(order_uuid),
-                    'related_data': {
-                        'payment_id': payment.payment_id,
-                        'amount': str(payment.amount)
-                    }
-                })
-            except Exception as e:
-                logger.warning(f"发送支付成功通知失败: {e}")
-
             response_serializer = PaymentSerializer(payment)
             return Response({
                 'code': '200',
@@ -146,16 +120,16 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
         # 这里应该调用支付宝、微信支付等第三方接口
 
         # 模拟生成支付URL和二维码（不直接完成支付）
-        payment_base_url = "https://payment.example.com"
-        payment_uuid = str(payment.payment_uuid)
+        # payment_base_url = "https://payment.example.com"
+        # payment_uuid = str(payment.payment_uuid)
 
-        payment_data = {
-            'payment_url': f"{payment_base_url}/pay/{payment_uuid}",
-            'qr_code': f"{payment_base_url}/qr/{payment_uuid}"
-        }
+        # payment_data = {
+        #     'payment_url': f"{payment_base_url}/pay/{payment_uuid}",
+        #     'qr_code': f"{payment_base_url}/qr/{payment_uuid}"
+        # }
 
-        # 更新支付记录的payment_data字段，但保持状态为待支付
-        payment.payment_data = payment_data
+        # # 更新支付记录的payment_data字段，但保持状态为待支付
+        # payment.payment_data = payment_data
         payment.save()
 
         return {
