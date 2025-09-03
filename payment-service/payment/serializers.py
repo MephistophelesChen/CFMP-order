@@ -85,9 +85,20 @@ class PaymentSerializer(serializers.ModelSerializer):
 class CreatePaymentSerializer(serializers.Serializer):
     """创建支付序列化器"""
     order_uuid = serializers.UUIDField()
-    payment_method = serializers.ChoiceField(choices=PAYMENT_METHOD_CHOICES)
+    payment_method = serializers.CharField(max_length=20)  # 改为CharField来接受字符串
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     payment_subject = serializers.CharField(max_length=255)
+
+    def validate_payment_method(self, value):
+        """验证支付方式"""
+        # 将字符串转换为对应的数字键
+        method_map = {
+            'alipay': 0,
+            'wechat_pay': 1,
+        }
+        if value not in method_map:
+            raise serializers.ValidationError("不支持的支付方式")
+        return method_map[value]
 
     def validate_order_uuid(self, value):
         """验证订单UUID"""
