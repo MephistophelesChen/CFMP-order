@@ -93,15 +93,26 @@ class CreatePaymentSerializer(serializers.Serializer):
         """验证订单UUID"""
         # 调用订单服务内部接口验证订单是否存在且状态为待支付
         try:
+            print(f"[DEBUG] 开始验证订单UUID: {value}")
             resp = service_client.get('OrderService', f'/api/orders/internal/{value}/')
+            print(f"[DEBUG] 订单服务响应: {resp}")
+
             if not resp or not resp.get('success'):
+                print(f"[DEBUG] 订单验证失败: resp={resp}")
                 raise serializers.ValidationError("订单不存在")
+
             data = resp.get('data') or {}
+            print(f"[DEBUG] 订单数据: {data}")
+
             if data.get('status') != 0:  # 待支付状态
+                print(f"[DEBUG] 订单状态不正确: {data.get('status')}")
                 raise serializers.ValidationError("订单状态不正确")
+
+            print(f"[DEBUG] 订单验证成功")
         except serializers.ValidationError:
             raise
         except Exception as e:
+            print(f"[DEBUG] 订单验证异常: {e}")
             # 无法联系订单服务时，返回验证失败
             raise serializers.ValidationError("订单验证失败")
         return value

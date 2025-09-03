@@ -126,10 +126,18 @@ class NacosClient:
             return []
 
         try:
-            instances = self.client.list_naming_instance(
+            response = self.client.list_naming_instance(
                 service_name=service_name,
                 group_name=self.group_name
             )
+
+            # 检查响应类型并解析
+            if isinstance(response, str):
+                import json
+                response = json.loads(response)
+
+            # 从响应中提取hosts数组
+            instances = response.get('hosts', []) if isinstance(response, dict) else []
             healthy_instances = [instance for instance in instances if instance.get('healthy', False)]
             logger.info(f"发现服务实例: {service_name} - {len(healthy_instances)}个健康实例")
             return healthy_instances

@@ -50,9 +50,13 @@ class ServiceClient:
         """发送HTTP请求"""
         base_url = self.get_service_url(service_name)
         if not base_url:
+            logger.error(f"无法获取服务URL: {service_name}")
             return None
 
         url = f"{base_url}{path}"
+        logger.info(f"发起HTTP请求: {method} {url}")
+        if data:
+            logger.info(f"请求数据: {data}")
 
         try:
             request_headers = dict(self.session.headers)
@@ -68,14 +72,21 @@ class ServiceClient:
                 timeout=self.timeout
             )
 
+            logger.info(f"HTTP响应状态: {response.status_code}")
+            logger.info(f"HTTP响应内容: {response.text[:500]}...")
+
             response.raise_for_status()
 
             if response.content:
-                return response.json()
+                result = response.json()
+                logger.info(f"解析后的响应: {result}")
+                return result
             return {}
 
         except requests.exceptions.RequestException as e:
             logger.error(f"服务请求失败: {method} {url} - {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"错误响应内容: {e.response.text}")
             return None
         except json.JSONDecodeError as e:
             logger.error(f"响应解析失败: {e}")

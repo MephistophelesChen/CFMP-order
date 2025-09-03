@@ -66,26 +66,36 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
 
     def create(self, request, *args, **kwargs):
     # 微服务通信：从Spring Cloud Gateway获取用户UUID
+        print(f"[DEBUG] 开始创建支付，请求数据: {request.data}")
         user_uuid = self.get_user_uuid_from_request()
+        print(f"[DEBUG] 获取到用户UUID: {user_uuid}")
         if not user_uuid:
+            print(f"[DEBUG] 用户身份验证失败")
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
 
         # 调用OrderService验证订单信息（内部接口，免认证）
         order_uuid = request.data.get('order_uuid')
+        print(f"[DEBUG] 订单UUID: {order_uuid}")
         if order_uuid:
             order_resp = service_client.get('OrderService', f'/api/orders/internal/{order_uuid}/')
+            print(f"[DEBUG] Views中订单验证响应: {order_resp}")
             if not order_resp or not order_resp.get('success'):
+                print(f"[DEBUG] Views中订单验证失败")
                 return Response({'error': '订单不存在'}, status=http_status.HTTP_400_BAD_REQUEST)
             order_data = order_resp.get('data') or {}
             if order_data.get('status') != 0:  # 只能支付待支付的订单
+                print(f"[DEBUG] Views中订单状态不允许支付: {order_data.get('status')}")
                 return Response({'error': '订单状态不允许支付'}, status=http_status.HTTP_400_BAD_REQUEST)
 
+        print(f"[DEBUG] Views中订单验证通过，开始序列化器验证")
         # 创建支付记录
         serializer = self.get_serializer(
             data=request.data,
             context={'user_uuid': user_uuid}
         )
+        print(f"[DEBUG] 开始调用序列化器is_valid")
         serializer.is_valid(raise_exception=True)
+        print(f"[DEBUG] 序列化器验证通过，开始保存")
         payment = serializer.save()
 
         # 调用第三方支付接口（模拟）
