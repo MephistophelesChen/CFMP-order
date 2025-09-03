@@ -146,7 +146,7 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
         # 这里应该调用支付宝、微信支付等第三方接口
 
         # 模拟支付处理 - 简化版本，总是成功
-        payment.status = 1  # 支付成功
+        payment.status = 2  # 支付成功 (2 = 'success')
         # transaction_id 暂时不设置，等集成真实支付平台时再添加
         payment.paid_at = timezone.now()
         payment.save()
@@ -220,11 +220,11 @@ class PaymentCallbackAPIView(GenericAPIView):
             #     payment.transaction_id = transaction_id
             if payment_status is not None:
                 payment.status = payment_status
-            if payment_status == 1:  # 支付成功
+            if payment_status == 2:  # 支付成功 (2 = 'success')
                 payment.paid_at = timezone.now()
             payment.save()
 
-            if payment_status == 1:  # 支付成功
+            if payment_status == 2:  # 支付成功 (2 = 'success')
                 # 更新订单状态（内部接口）
                 try:
                     service_client.patch('OrderService', f'/api/orders/internal/orders/{payment.order_uuid}/', {
@@ -403,16 +403,16 @@ class PaymentStatsAPIView(GenericAPIView, MicroserviceBaseView):
         from django.db.models import Sum
         stats = {
             'total_payments': payments.count(),
-            'successful_payments': payments.filter(status=1).count(),
-            'failed_payments': payments.filter(status=2).count(),
-            'refunded_payments': payments.filter(status=3).count(),
-            'total_amount': payments.filter(status=1).aggregate(Sum('amount'))['amount__sum'] or 0,
+            'successful_payments': payments.filter(status=2).count(),  # 2 = 'success'
+            'failed_payments': payments.filter(status=3).count(),      # 3 = 'failed'
+            'refunded_payments': payments.filter(status=4).count(),    # 4 = 'cancelled'
+            'total_amount': payments.filter(status=2).aggregate(Sum('amount'))['amount__sum'] or 0,  # 成功支付的总金额
         }
 
         # 最近30天支付统计
         from datetime import datetime, timedelta
         thirty_days_ago = timezone.now() - timedelta(days=30)
-        recent_payments = payments.filter(created_at__gte=thirty_days_ago, status=1)
+        recent_payments = payments.filter(created_at__gte=thirty_days_ago, status=2)  # 2 = 'success'
 
         stats['recent_payments'] = recent_payments.count()
         stats['recent_amount'] = recent_payments.aggregate(Sum('amount'))['amount__sum'] or 0
