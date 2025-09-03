@@ -145,15 +145,21 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
         # TODO: 实现具体的支付处理逻辑
         # 这里应该调用支付宝、微信支付等第三方接口
 
-        # 模拟支付处理 - 简化版本，总是成功
-        payment.status = 2  # 支付成功 (2 = 'success')
-        # transaction_id 暂时不设置，等集成真实支付平台时再添加
-        payment.paid_at = timezone.now()
+        # 模拟生成支付URL和二维码（不直接完成支付）
+        payment_base_url = "https://payment.example.com"
+        payment_uuid = str(payment.payment_uuid)
+
+        payment_data = {
+            'payment_url': f"{payment_base_url}/pay/{payment_uuid}",
+            'qr_code': f"{payment_base_url}/qr/{payment_uuid}"
+        }
+
+        # 更新支付记录的payment_data字段，但保持状态为待支付
+        payment.payment_data = payment_data
         payment.save()
 
         return {
             'success': True,
-            # 'transaction_id': payment.transaction_id  # 暂时注释掉
         }
 
 
@@ -263,14 +269,34 @@ class PaymentQueryByOrderAPIView(GenericAPIView, MicroserviceBaseView):
     """通过订单ID查询支付记录"""
     # permission_classes = [IsAuthenticated]
 
-    def get(self, request, order_id):
+    def get(self, request, order_uuid):
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
 
-        # 根据订单ID查询支付记录
+        # 检查order_uuid是数字还是UUID
+        try:
+            # 尝试转换为UUID，如果成功则直接使用
+            import uuid
+            uuid.UUID(order_uuid)
+            actual_order_uuid = order_uuid
+        except (ValueError, TypeError):
+            # 如果不是UUID，则认为是数字ID，需要通过OrderService获取UUID
+            try:
+                order_resp = service_client.get('OrderService', f'/api/orders/{order_uuid}/')
+                if not order_resp or order_resp.get('code') != '200':
+                    return Response({'error': '订单不存在'}, status=http_status.HTTP_404_NOT_FOUND)
+                order_data = order_resp.get('data') or {}
+                actual_order_uuid = order_data.get('order_uuid')
+                if not actual_order_uuid:
+                    return Response({'error': '无法获取订单UUID'}, status=http_status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                logger.error(f"获取订单UUID失败: {e}")
+                return Response({'error': '查询订单信息失败'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 根据订单UUID查询支付记录
         payments = Payment.objects.filter(
-            order_uuid=order_id,
+            order_uuid=actual_order_uuid,
             user_uuid=user_uuid
         ).order_by('-created_at')
 
@@ -291,14 +317,14 @@ class PaymentCancelAPIView(GenericAPIView, MicroserviceBaseView):
     """取消支付"""
     # permission_classes = [IsAuthenticated]
 
-    def post(self, request, payment_id):
+    def post(self, request, payment_uuid):
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Response({'error': '用户身份验证失败'}, status=http_status.HTTP_401_UNAUTHORIZED)
 
         payment = get_object_or_404(
             Payment,
-            payment_uuid=payment_id,
+            payment_uuid=payment_uuid,
             user_uuid=user_uuid
         )
 
@@ -321,7 +347,7 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
     """支付退款"""
     # permission_classes = [IsAuthenticated]
 
-    def post(self, request, order_id):
+    def post(self, request, order_uuid):
     # 从Spring Cloud Gateway获取用户UUID
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
@@ -330,7 +356,7 @@ class PaymentRefundAPIView(GenericAPIView, MicroserviceBaseView):
         # 根据订单UUID查找对应的支付记录
         try:
             payment = Payment.objects.get(
-                order_uuid=order_id,
+                order_uuid=order_uuid,
                 user_uuid=user_uuid,
                 status=2  # 只查找支付成功的记录
             )
