@@ -70,10 +70,10 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "200m"
+            cpu: "100m"
           limits:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "200m"
         volumeMounts:
         - name: logs
           mountPath: /app/logs

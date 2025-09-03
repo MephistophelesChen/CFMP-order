@@ -218,7 +218,112 @@ Query Parameters:
 
 获取当前用户作为卖家的所有订单。
 
-**响应体:** 同订单列表格式
+**请求参数:**
+```
+Query Parameters:
+- status: string (可选) - 订单状态过滤 ["pending_payment", "paid", "completed", "cancelled", "all"]
+- sort: string (可选) - 排序方式 ["created_desc", "created_asc", "amount_desc", "amount_asc"]
+- page: int (可选) - 页码，默认1
+- page_size: int (可选) - 每页大小，默认10，最大100
+```
+
+**请求示例:**
+```http
+GET /api/orders/sold/?status=paid&sort=created_desc&page=1&page_size=20
+Headers:
+X-User-UUID: 550e8400-e29b-41d4-a716-446655440002
+Content-Type: application/json
+```
+
+**响应体:**
+```json
+{
+    "code": "200",
+    "message": "success",
+    "data": [
+        {
+            "order_id": 123,
+            "order_uuid": "550e8400-e29b-41d4-a716-446655440000",
+            "buyer_id": "user123",
+            "buyer_uuid": "550e8400-e29b-41d4-a716-446655440001",
+            "seller_id": "seller456",
+            "seller_uuid": "550e8400-e29b-41d4-a716-446655440002",
+            "status": 1,
+            "created_at": "2025-01-01T12:00:00Z",
+            "payment_method": 0,
+            "cancel_reason": null,
+            "payment_time": "2025-01-01T12:05:00Z",
+            "remark": "备注信息",
+            "shipping_address": "配送地址",
+            "shipping_name": "收货人",
+            "shipping_phone": "13800138000",
+            "shipping_postal_code": "100000",
+            "total_amount": "199.98",
+            "updated_at": "2025-01-01T12:05:00Z",
+            "products": [
+                {
+                    "product_id": "product123",
+                    "product_uuid": "550e8400-e29b-41d4-a716-446655440003",
+                    "product_name": "商品名称",
+                    "price": "99.99",
+                    "quantity": 2,
+                    "product_image": "https://example.com/image.jpg"
+                }
+            ]
+        }
+    ]
+}
+```
+
+**微服务调用详情:**
+
+1. **调用 UserService 获取买家信息**
+   ```
+   GET /api/v1/user/{buyer_uuid}/
+   Headers: 无需特殊认证头（内部调用）
+   ```
+   **预期响应:**
+   ```json
+   {
+       "user_id": "user123",
+       "id": "user123",
+       "username": "买家用户名",
+       "email": "buyer@example.com",
+       "phone": "13800138000"
+   }
+   ```
+
+2. **调用 ProductService 获取商品信息**
+   ```
+   GET /api/products/{product_uuid}/
+   Headers: 无需特殊认证头（内部调用）
+   ```
+   **预期响应:**
+   ```json
+   {
+       "product_uuid": "550e8400-e29b-41d4-a716-446655440003",
+       "name": "商品名称",
+       "price": 99.99,
+       "image": "https://example.com/image.jpg",
+       "stock": 100
+   }
+   ```
+
+**调用失败处理:**
+- 如果 UserService 调用失败，将返回 UUID 字符串作为 fallback
+- 如果 ProductService 调用失败，商品名称将显示为 "商品"，图片为空
+- 不会影响订单列表的正常返回
+
+**业务逻辑说明:**
+- 根据请求头中的 `X-User-UUID` 筛选当前用户作为卖家的订单
+- 支持与普通订单列表相同的查询参数和排序方式
+- 返回的订单中，`seller_uuid` 字段值与请求头中的用户UUID相同
+
+**使用场景:**
+- 卖家管理后台查看自己的销售订单
+- 卖家处理订单发货、完成等操作
+- 按状态筛选查看待处理订单
+- 销售数据统计和分析
 
 ---
 
