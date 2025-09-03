@@ -44,7 +44,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'payment_id', 'payment_uuid', 'order_uuid', 'user_uuid',
             'amount', 'payment_method', 'payment_method_display',
             'status', 'status_display', 'created_at', 'paid_at',
-            'expires_at', 'transaction_id', 'payment_subject',
+            'expires_at', 'payment_subject',
             'payment_data', 'failure_reason', 'order_info', 'user_info'
         ]
 
@@ -151,6 +151,6 @@ class CreatePaymentSerializer(serializers.Serializer):
 class PaymentCallbackSerializer(serializers.Serializer):
     """支付回调序列化器"""
     payment_uuid = serializers.UUIDField()
-    transaction_id = serializers.CharField()
+    # transaction_id = serializers.CharField()  # 暂时不使用
     status = serializers.ChoiceField(choices=PAYMENT_STATUS_CHOICES)
     callback_data = serializers.JSONField(required=False)

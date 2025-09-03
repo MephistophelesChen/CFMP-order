@@ -145,26 +145,16 @@ class PaymentCreateAPIView(CreateAPIView, MicroserviceBaseView):
         # TODO: 实现具体的支付处理逻辑
         # 这里应该调用支付宝、微信支付等第三方接口
 
-        # 模拟支付处理
-        import random
-        if random.choice([True, False]):  # 50%成功率模拟
-            payment.status = 1  # 支付成功
-            payment.transaction_id = f"txn_{uuid.uuid4().hex[:16]}"
-            payment.paid_at = timezone.now()
-            payment.save()
+        # 模拟支付处理 - 简化版本，总是成功
+        payment.status = 1  # 支付成功
+        # transaction_id 暂时不设置，等集成真实支付平台时再添加
+        payment.paid_at = timezone.now()
+        payment.save()
 
-            return {
-                'success': True,
-                'transaction_id': payment.transaction_id
-            }
-        else:
-            payment.status = 2  # 支付失败
-            payment.save()
-
-            return {
-                'success': False,
-                'error': '支付处理失败'
-            }
+        return {
+            'success': True,
+            # 'transaction_id': payment.transaction_id  # 暂时注释掉
+        }
 
 
 class PaymentListAPIView(ListAPIView, MicroserviceBaseView):
@@ -210,7 +200,7 @@ class PaymentCallbackAPIView(GenericAPIView):
         # 为了保持API兼容性，我们支持两种字段名
         payment_id = request.data.get('payment_id')
         payment_uuid = request.data.get('payment_uuid')
-        transaction_id = request.data.get('transaction_id')
+        # transaction_id = request.data.get('transaction_id')  # 暂时不使用
         payment_status = request.data.get('status')
 
         try:
@@ -226,8 +216,8 @@ class PaymentCallbackAPIView(GenericAPIView):
                 }, status=http_status.HTTP_400_BAD_REQUEST)
 
             # 更新支付状态
-            if transaction_id:
-                payment.transaction_id = transaction_id
+            # if transaction_id:  # 暂时不使用
+            #     payment.transaction_id = transaction_id
             if payment_status is not None:
                 payment.status = payment_status
             if payment_status == 1:  # 支付成功

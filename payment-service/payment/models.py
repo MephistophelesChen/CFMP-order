@@ -36,7 +36,7 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
-    transaction_id = models.BigIntegerField(null=True, blank=True)  # 支付平台交易号
+    # transaction_id = models.BigIntegerField(null=True, blank=True)  # 支付平台交易号 - 暂时不使用
     payment_subject = models.CharField(max_length=255)  # 支付标题
     payment_data = models.JSONField(default=dict, blank=True)  # 支付数据（如支付URL、二维码等）
     failure_reason = models.CharField(max_length=255, null=True, blank=True)
