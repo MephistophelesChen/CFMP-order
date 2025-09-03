@@ -200,11 +200,13 @@ class OrderDetailAPIView(RetrieveUpdateDestroyAPIView, MicroserviceBaseView):
     lookup_field = 'order_id'
 
     def get_queryset(self):
-        """只能访问自己的订单"""
+        """只能访问自己的订单（作为买家或卖家）"""
         user_uuid = self.get_user_uuid_from_request()
         if not user_uuid:
             return Order.objects.none()
-        return Order.objects.filter(buyer_uuid=user_uuid).prefetch_related('order_items')
+        return Order.objects.filter(
+            Q(buyer_uuid=user_uuid) | Q(seller_uuid=user_uuid)
+        ).prefetch_related('order_items')
 
     def retrieve(self, request, *args, **kwargs):
         """获取订单详情 - 兼容原有API响应格式"""
