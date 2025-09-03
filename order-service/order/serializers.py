@@ -190,7 +190,7 @@ class CreateOrderSerializer(serializers.Serializer):
     shipping_name = serializers.CharField(max_length=100)
     shipping_phone = serializers.CharField(max_length=20)
     shipping_address = serializers.CharField(max_length=500)
-    shipping_postal_code = serializers.CharField(max_length=20, required=False)
+    shipping_postal_code = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     def validate_products(self, value):
         """验证商品数据"""
@@ -202,7 +202,7 @@ class CreateOrderSerializer(serializers.Serializer):
                 raise serializers.ValidationError("缺少商品UUID")
             if 'quantity' not in product_data or product_data['quantity'] <= 0:
                 raise serializers.ValidationError("商品数量必须大于0")
-            if 'price' not in product_data or product_data['price'] <= 0:
+            if 'price' not in product_data or float(product_data['price']) <= 0:
                 raise serializers.ValidationError("商品价格必须大于0")
 
         return value
