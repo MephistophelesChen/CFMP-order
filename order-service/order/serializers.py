@@ -249,7 +249,20 @@ class CreateOrderSerializer(serializers.Serializer):
             product_image = None
             if product_info and isinstance(product_info, dict):
                 product_name = product_info.get('name') or product_info.get('title') or '商品'
-                product_image = product_info.get('image') or product_info.get('thumbnail')
+                # 优先从 media 数组中获取主图
+                media_list = product_info.get('media', [])
+                if media_list and isinstance(media_list, list):
+                    # 查找主图（is_main=True）
+                    main_media = next((m for m in media_list if m.get('is_main', False)), None)
+                    if main_media:
+                        product_image = main_media.get('media')
+                    elif media_list:
+                        # 如果没有主图，使用第一张图片
+                        product_image = media_list[0].get('media')
+
+                # 如果 media 中没有图片，回退到原有字段
+                if not product_image:
+                    product_image = product_info.get('image') or product_info.get('thumbnail')
 
             OrderItem.objects.create(
                 order=order,
