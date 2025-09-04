@@ -570,8 +570,31 @@ class OrderSoldListAPIView(ListAPIView, MicroserviceBaseView):
         if not user_uuid:
             return Order.objects.none()
 
-        # 直接通过seller_uuid查询订单
-        return Order.objects.filter(seller_uuid=user_uuid).prefetch_related('order_items').order_by('-created_at')
+        status_filter = getattr(self.request, 'query_params', {}).get('status')
+        queryset = Order.objects.filter(seller_uuid=user_uuid).prefetch_related('order_items')
+
+        if status_filter and status_filter != 'all':
+            status_map = {
+                'pending_payment': 0,
+                'paid': 1,
+                'completed': 2,
+                'cancelled': 3
+            }
+            if status_filter in status_map:
+                queryset = queryset.filter(status=status_map[status_filter])
+
+        # 排序
+        sort = getattr(self.request, 'query_params', {}).get('sort', 'created_desc')
+        if sort == 'created_desc':
+            queryset = queryset.order_by('-created_at')
+        elif sort == 'created_asc':
+            queryset = queryset.order_by('created_at')
+        elif sort == 'amount_desc':
+            queryset = queryset.order_by('-total_amount')
+        elif sort == 'amount_asc':
+            queryset = queryset.order_by('total_amount')
+
+        return queryset
 
     def list(self, request, *args, **kwargs):
         """返回卖家订单列表 - 兼容原有API响应格式"""
